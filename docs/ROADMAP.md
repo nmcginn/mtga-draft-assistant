@@ -45,6 +45,10 @@ by rating, with card images, before the pick timer matters. macOS and Linux
     `CLAUDE.md` (250 ms) is checked against a real number on macOS and Linux.
     The PR reports both, and proposes a gate if the CI number is stable enough
     to hold one.
+  - Checks whether first paint waits on go-gui's accessibility bridge, which
+    connects to D-Bus before the first frame: CI saw a multi-second stall
+    with no session bus running (#2). If a real desktop ever waits on it, the
+    fix belongs upstream in go-gui, not in a workaround here.
 
 - [ ] **Find Arena's log, and say clearly when it cannot.**
   - A pure function from platform, home directory, and environment to an

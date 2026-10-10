@@ -69,10 +69,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            xvfb libegl1 libegl-mesa0 libgl1-mesa-dri imagemagick
+            xvfb libegl1 libegl-mesa0 libgl1-mesa-dri imagemagick dbus
 
       # An explicit `shell: bash` runs the step with pipefail; without it the
       # `tee` below would report success for a smoke test that failed.
+      #
+      # dbus-run-session gives the app a session bus, as every Linux desktop
+      # does. Without one, godbus autolaunches a bus for go-gui's
+      # accessibility bridge, a path no user's machine takes and the likely
+      # cause of the multi-second stall before first paint seen on runners.
       - name: Launch the app
         shell: bash
         run: |
@@ -80,7 +85,7 @@ jobs:
             echo '### First paint'
             echo
             echo '```'
-            xvfb-run -a -s "-screen 0 420x760x24" make smoke
+            dbus-run-session -- xvfb-run -a -s "-screen 0 420x760x24" make smoke
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 

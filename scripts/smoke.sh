@@ -5,14 +5,18 @@
 #
 #   scripts/smoke.sh <binary> <screenshot.png>
 #
-# Needs an X display; run it under `xvfb-run -a` on a headless machine, with
-# Mesa's EGL installed (libegl1 libegl-mesa0 libgl1-mesa-dri) and ImageMagick
-# for `import`. Linux only: it reads /proc for CPU time.
+# Needs an X display; on a headless machine run it as CI does,
+#   dbus-run-session -- xvfb-run -a make smoke
+# with Mesa's EGL (libegl1 libegl-mesa0 libgl1-mesa-dri), ImageMagick, and
+# dbus installed. Linux only: it reads /proc for CPU time.
 #
-# Startup is waited out, not timed: under Mesa's software renderer a cold
-# shader cache costs over a CPU-second of compiling before the first frame,
-# and on a slow CI runner that runs past any fixed sleep. Measuring "idle"
-# from a fixed moment would then measure the tail of startup instead. Time to
+# Startup is waited out, not timed: the script first waits for the window to
+# paint (the screen holds more than one colour), then for a second with no CPU.
+# Neither alone is enough. Under Mesa's software renderer a cold shader cache
+# costs over a CPU-second before the first frame, which outlasts any fixed
+# sleep on a slow runner; and before rendering starts the app can sit blocked
+# and quiet (for example while D-Bus starts up for go-gui's accessibility
+# bridge), which looks like "settled" if CPU is all that is watched. Time to
 # first frame is its own measurement (see the roadmap).
 set -eu
 
@@ -23,7 +27,8 @@ fi
 bin=$1
 shot=$2
 window=${SMOKE_IDLE_SECONDS:-5}
-# How long startup may keep the CPU busy before that alone is a failure.
+# How long the app may take to paint and then go quiet before that alone is a
+# failure.
 startup_limit=${SMOKE_STARTUP_SECONDS:-30}
 # Clock ticks of CPU the idle window may use. 100 ticks is one CPU-second, so
 # the default allows 2% of one core over five seconds; a redraw loop that
@@ -43,20 +48,38 @@ alive() {
 	fi
 }
 
-# Startup is over once a whole second passes with (almost) no CPU used.
+# How many colours are on screen. An empty Xvfb root is one flat colour; a
+# painted window, with its text antialiased, is hundreds.
+colours() {
+	import -window root "$shot" 2>/dev/null || { echo 0; return; }
+	convert "$shot" -format '%k' info: 2>/dev/null || echo 0
+}
+
 waited=0
-prev=$(cpu_ticks)
-while :; do
+tick() {
 	sleep 1
 	waited=$((waited + 1))
 	alive
+	if [ "$waited" -ge "$startup_limit" ]; then
+		echo "the app was still $1 ${startup_limit}s after launch" >&2
+		exit 1
+	fi
+}
+
+# First the window has to paint at all...
+while [ "$(colours)" -le 1 ]; do
+	tick "not painted"
+done
+painted_at=$waited
+
+# ...then the work around first paint has to finish: a whole second with
+# (almost) no CPU used.
+prev=$(cpu_ticks)
+while :; do
+	tick "busy"
 	now=$(cpu_ticks)
 	if [ $((now - prev)) -le 1 ]; then
 		break
-	fi
-	if [ "$waited" -ge "$startup_limit" ]; then
-		echo "the app was still busy ${startup_limit}s after launch; it never went idle" >&2
-		exit 1
 	fi
 	prev=$now
 done
@@ -71,7 +94,7 @@ used=$((after - before))
 rss=$(awk '/^VmRSS/ { print $2 " " $3 }' "/proc/$pid/status")
 
 echo "first paint: $shot"
-echo "startup: settled within ${waited}s, using $startup_ticks ticks (includes Mesa compiling shaders on a cold cache)"
+echo "startup: painted within ${painted_at}s, settled within ${waited}s, using $startup_ticks ticks (includes Mesa compiling shaders on a cold cache)"
 echo "idle CPU: $used ticks over ${window}s (budget $max_ticks); RSS: $rss"
 if [ "$used" -gt "$max_ticks" ]; then
 	echo "the app is not idle while nothing is happening; something is redrawing or polling too often" >&2
