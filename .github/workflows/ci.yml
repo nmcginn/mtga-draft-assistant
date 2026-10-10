@@ -71,7 +71,10 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             xvfb libegl1 libegl-mesa0 libgl1-mesa-dri imagemagick
 
+      # An explicit `shell: bash` runs the step with pipefail; without it the
+      # `tee` below would report success for a smoke test that failed.
       - name: Launch the app
+        shell: bash
         run: |
           {
             echo '### First paint'
