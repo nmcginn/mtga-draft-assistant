@@ -1,0 +1,63 @@
+# golangci-lint v2. The version is pinned in the Makefile, and CI runs the
+# Makefile, so the lint a contributor sees is the lint CI enforces.
+version: "2"
+
+linters:
+  # errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  enable:
+    - bodyclose  # an unclosed response body leaks a connection per request
+    - noctx      # every request carries a context, so it can be cancelled
+    - errorlint  # wrapped errors are compared with errors.Is/As
+    - forbidigo
+    - depguard
+    - misspell
+    - modernize
+  settings:
+    forbidigo:
+      analyze-types: true
+      forbid:
+        # Decision 4. A panic on any goroutine kills the process, and with
+        # it the user's draft view. Return an error.
+        - pattern: ^panic$
+          msg: "no panics outside tests (decision 4): return an error"
+        - pattern: ^log\.(Fatal|Fatalf|Fatalln|Panic|Panicf|Panicln)$
+          pkg: ^log$
+          msg: "no exits or panics from library code (decision 4): return an error"
+        - pattern: ^os\.Exit$
+          pkg: ^os$
+          msg: "only cmd/ decides the exit code (decision 4)"
+        # Decision 9. Every outbound request names us, is rate limited per
+        # host, and can be cancelled. The default client does none of that.
+        - pattern: ^http\.(Get|Head|Post|PostForm|DefaultClient)$
+          pkg: ^net/http$
+          msg: "outbound requests go through the app's own client (decision 9), never net/http's default"
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: unsafe
+              desc: "no unsafe (decision 4)"
+            - pkg: github.com/mattn/go-sqlite3
+              desc: "needs cgo, which breaks the cgo-free Linux and Windows builds; use modernc.org/sqlite (decision 11)"
+            - pkg: github.com/go-gui-org/go-gui/gui/backend
+              desc: "only internal/ui/run.go opens a window; everything else must render headless (decision 5)"
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [forbidigo]
+      - path: ^cmd/
+        text: os\.Exit
+        linters: [forbidigo]
+      - path: ^internal/ui/run\.go$
+        text: gui/backend
+        linters: [depguard]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/nmcginn/mtga-draft-assistant
