@@ -31,11 +31,16 @@ The goal: open the app, start a draft in Arena, and see the current pack ranked
 by rating, with card images, before the pick timer matters. macOS and Linux
 (decision 3).
 
-- [ ] **Needs human: capture draft log fixtures.**
-  Following `testdata/README.md`, scrubbed: a Premier Draft, a Quick Draft
-  (bot draft), and a Traditional Draft, each from launching the event through
-  at least three picks; plus the start of a `Player.log` from a fresh Arena
-  launch, without a draft. Unblocks the parsing tasks below.
+- [ ] **Needs human: capture draft log fixtures, one draft at a time.**
+  Following `testdata/README.md`, scrubbed. Drafts cost an entry fee, so these
+  arrive as the maintainer plays them, not all at once; each lands in its own
+  PR, and each one unblocks work below as soon as it is merged.
+  - [ ] The start of a `Player.log` from a fresh Arena launch, without a draft.
+  - [ ] The first draft, in whichever format is played first, from launching
+    the event through at least three picks. Unblocks the parsing task.
+  - [ ] The other two of Premier Draft, Quick Draft (bot draft), and
+    Traditional Draft, the same way. Each unblocks its format in "Parse the
+    remaining draft formats".
 
 - [ ] **Measure the time to first frame.**
   - The app can report how long it took from process start to its first
@@ -81,17 +86,31 @@ by rating, with card images, before the pick timer matters. macOS and Linux
     replacement, a multi-megabyte log read incrementally, a file that
     disappears.
 
-- [ ] **Parse draft events from the log.** *Blocked on fixtures.*
+- [ ] **Parse draft events from the log.** *Blocked on the first draft
+  fixture.*
   - Turns log lines into typed events: a draft started (set, format, event),
     a pack shown (pack and pick number, card ids), a pick made (card id), the
     draft ended (the pool).
-  - Covers Premier, Traditional, and Quick Draft from the fixtures. Lines that
-    are not draft events are skipped cheaply: most of the log is not about
-    drafting.
+  - Covers every draft format that has a fixture in `testdata/logs/` when the
+    work starts; one is enough to begin. Arena may log each format
+    differently, so a format with no fixture is not guessed at: its lines are
+    skipped like any other unknown line, and the PR names the formats still
+    to come. Lines that are not draft events are skipped cheaply: most of the
+    log is not about drafting.
   - Unknown or malformed draft lines are logged at debug level and skipped,
     never fatal.
   - Tests: every fixture, a line cut off mid-JSON, a pack seen twice (Arena
     re-logs on reconnect), events out of the order expected.
+
+- [ ] **Parse the remaining draft formats.** *Each blocked on its fixture.*
+  Whichever of these the parsing task did not already cover, one PR per
+  format as its fixture lands: the parser learns that format's lines, and the
+  same tests run against its fixture, including a whole draft replayed through
+  the model once the next task exists. Tick a format here when it is
+  covered, by either task.
+  - [ ] Premier Draft
+  - [ ] Quick Draft (bot draft)
+  - [ ] Traditional Draft
 
 - [ ] **Track the draft in the model.** *Blocked on parsing.*
   - `app.Model` gains the current draft: set, format, pack and pick number,
