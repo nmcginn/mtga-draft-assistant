@@ -35,3 +35,7 @@ go.work.sum
 # Build output: `make build`/`make release` binaries and the smoke screenshot.
 /bin/
 /dist/
+
+# Raw Arena logs copied in to cut fixtures from. They hold account details;
+# only scrubbed cuts under testdata/logs/ are ever committed.
+/Player*.log

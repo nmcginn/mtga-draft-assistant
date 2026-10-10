@@ -33,9 +33,22 @@ fixtures from before and after can both be kept and both be tested.
      that identify you rather than an event or a card),
    - session and authentication tokens (anything named `token`, `ticket`, or
      `session`),
-   - email addresses and IP addresses.
+   - email addresses and IP addresses,
+   - IDs of things the account owns: course (`CourseId`) and deck (`DeckId`)
+     IDs,
+   - paths under your home directory, and Steam IDs.
    Card IDs (`grpId`), event names, set codes, and draft IDs are not personal
    and should stay as they are.
+
+   The repository is public, so be conservative beyond that list: anything a
+   parser does not need is zeroed, not kept because it looks harmless. Keep
+   every key, so the line keeps its real shape, and zero the values: numbers
+   to `0`, strings to `""`, lists to `[]`, and maps keyed by what the account
+   owns (`CustomTokens`, `Vouchers`) to `{}`. In practice that means the whole
+   `InventoryInfo` object (currency, wildcards, cosmetics owned), the
+   cosmetics on a deck (`Sleeve`, `DeckArtId`), and any timestamp that
+   carries a UTC offset. Log line timestamps (`10/10/2026 12:44:31 PM`) stay:
+   they are part of the log's format.
 5. Commit it with a note in the PR saying which Arena version it came from.
 
 ## Recorded HTTP responses

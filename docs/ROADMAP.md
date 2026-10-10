@@ -36,8 +36,10 @@ by rating, with card images, before the pick timer matters. macOS and Linux
   arrive as the maintainer plays them, not all at once; each lands in its own
   PR, and each one unblocks work below as soon as it is merged.
   - [ ] The start of a `Player.log` from a fresh Arena launch, without a draft.
-  - [ ] The first draft, in whichever format is played first, from launching
+  - [x] The first draft, in whichever format is played first, from launching
     the event through at least three picks. Unblocks the parsing task.
+    Premier Draft, FRA, all 42 picks:
+    `testdata/logs/2026-10-fra-premier-full-draft.log`.
   - [ ] The other two of Premier Draft, Quick Draft (bot draft), and
     Traditional Draft, the same way. Each unblocks its format in "Parse the
     remaining draft formats".
