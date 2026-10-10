@@ -70,11 +70,11 @@ delete a test to get to green — if a test is genuinely wrong, change it
 deliberately and say so in the PR.
 
 Where a change is visible, launch it and look at it. On a headless Linux machine
-with `xvfb`, Mesa EGL (`libegl1 libegl-mesa0 libgl1-mesa-dri`) and ImageMagick
-installed:
+with `xvfb`, Mesa EGL (`libegl1 libegl-mesa0 libgl1-mesa-dri`), ImageMagick and
+`dbus` installed (the same command CI's smoke job runs):
 
 ```sh
-xvfb-run -a -s "-screen 0 420x760x24" make smoke
+dbus-run-session -- xvfb-run -a -s "-screen 0 420x760x24" make smoke
 ```
 
 That writes `bin/first-paint.png`; read it and check it looks right. For a state
