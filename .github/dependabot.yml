@@ -1,0 +1,25 @@
+version: 2
+
+updates:
+  # Grouped so routine bumps arrive as one reviewable PR a week rather than a
+  # handful competing with the nightly feature work. go-gui is pre-1.0 and
+  # moves fast; a minor bump of it can change rendering, so it is reviewed
+  # like a feature (decision 3).
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: saturday
+    open-pull-requests-limit: 3
+    groups:
+      patch-and-minor:
+        update-types: [minor, patch]
+        exclude-patterns: ["github.com/go-gui-org/*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]

@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+# A new push supersedes whatever was already running for the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Format, vet, lint, cross-compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # go.mod's toolchain line names the exact Go every job builds with, the
+      # same one `make check` runs locally (decision 2).
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - run: make fmt-check vet lint cross
+
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # macOS is where the maintainer plays Arena, and its Metal backend is
+        # the one path that needs cgo, so it is tested on real macOS rather
+        # than cross-compiled (decision 3). Windows is compile-checked by
+        # `make cross` until the MVP ships.
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Test, under the race detector
+        run: make race
+
+      - name: Build and check the release binary's size
+        run: make size
+
+      - name: The binary starts without a display
+        run: ./bin/mtga-draft-assistant -version
+
+  # Launches the real window under Xvfb with Mesa's software EGL, keeps the
+  # first-paint screenshot for the reviewer, and fails if the app burns CPU
+  # while nothing is happening (decision 10).
+  smoke:
+    name: Launch, screenshot, idle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Install a headless display and software EGL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb libegl1 libegl-mesa0 libgl1-mesa-dri imagemagick
+
+      - name: Launch the app
+        run: |
+          {
+            echo '### First paint'
+            echo
+            echo '```'
+            xvfb-run -a -s "-screen 0 420x760x24" make smoke
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: first-paint
+          path: bin/first-paint.png
+          if-no-files-found: ignore
+
+  # Its own job, outside `make check`, because it needs the network and a new
+  # advisory can land against an unchanged go.sum on any PR; that should read
+  # as exactly that, not as the PR's own failure.
+  vuln:
+    name: Known vulnerabilities (govulncheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - run: make vuln
