@@ -12,6 +12,9 @@ internal/
   ui/                  go-gui views over an app.Model, the Theme, ui.Post for
                        handing messages to the UI thread, and run.go: the one
                        file that opens a real window.
+  startup/             Time to first frame: when each stage of startup
+                       finished, and the one-line report -startup-time prints
+                       (decision 19).
   version/             The build's version and the User-Agent every request
                        carries.
 ```
@@ -124,7 +127,14 @@ Everything lives under `os.UserCacheDir()/mtga-draft-assistant` (decision 16):
   2% of a core over five idle seconds (decision 10). go-gui only redraws when
   something is invalidated; the log follower's poll is a `stat`.
 - **Startup:** window up within 250 ms of launch; first paint never waits on
-  disk beyond what the first frame shows, or on the network.
+  disk beyond what the first frame shows, or on the network. Measured with
+  `-startup-time` (decision 19); `make smoke` and CI's macOS job print it.
+  Under Xvfb with Mesa's software renderer it is ~150–220 ms with a warm
+  shader cache and ~370–400 ms with a cold one, most of the difference in
+  compiling shaders for the first draw. go-gui connects its accessibility
+  bridge (D-Bus on Linux) between building the first frame and presenting
+  it: ~2 ms with the desktop's AT-SPI bus already running, ~30 ms when the
+  first connection starts it, ~0.1 s when there is no session bus at all.
 - **Binary:** under `SIZE_BUDGET_MIB` (`Makefile`), enforced by `make size`.
 - **Memory:** to be budgeted once real numbers exist. Xvfb with Mesa's software
   renderer reports ~150 MB RSS for the empty window, which says more about

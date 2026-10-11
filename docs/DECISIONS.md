@@ -152,3 +152,19 @@ A normal window placed beside Arena, optionally always on top, works the same
 on every platform and does not need to know where Arena draws its cards at each
 resolution. An overlay drawn over the pack is a roadmap idea, and a decision for
 the maintainer, not an assumption built into the code.
+
+### 19. Time to first frame is measured by the app, on request, and reported
+
+`-startup-time` prints one line to stderr once the first frame has been
+presented: the total from process start, against the 250 ms target, and the
+time spent in each stage (Go runtime and init, window and GPU context, first
+view, then layout, accessibility bridge, draw and present). Off, the window is
+built exactly as without it. Process start comes from the OS (`/proc` on
+Linux, good to 10 ms; `sysctl` on macOS); elsewhere the count starts at
+`main`, and the line says so. go-gui has no "frame presented" callback, so the
+first view's build queues a command, and go-gui runs it at the start of the
+next frame, after the first was presented. `make smoke` (Linux, Xvfb) and
+CI's macOS test job print it on every PR. It is reported, not gated: a fresh
+runner always has a cold shader cache, which a user's second launch never
+does, so CI's number overstates what users see. Any gate is the maintainer's
+call.

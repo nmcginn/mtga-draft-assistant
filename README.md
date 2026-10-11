@@ -71,6 +71,10 @@ make run      # build and launch
 make smoke    # launch the release build, screenshot it, check it idles (Linux)
 ```
 
+`-startup-time` prints how long the first frame took to reach the screen, and
+where the time went; `scripts/first-frame.sh bin/mtga-draft-assistant 3`
+launches it three times and prints each.
+
 Work on this project happens in small nightly pull requests; the working
 agreement is in [`CLAUDE.md`](CLAUDE.md), the design in
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), and the reasons behind it in

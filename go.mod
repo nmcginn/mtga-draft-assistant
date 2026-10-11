@@ -7,7 +7,10 @@ go 1.26.0
 // result on a laptop is a result in CI (decision 2). `go` downloads it on demand.
 toolchain go1.26.9
 
-require github.com/go-gui-org/go-gui v0.86.0
+require (
+	github.com/go-gui-org/go-gui v0.86.0
+	golang.org/x/sys v0.48.0
+)
 
 require (
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
@@ -23,6 +26,5 @@ require (
 	github.com/yuin/goldmark v1.8.5 // indirect
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
 	golang.org/x/image v0.46.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 )
