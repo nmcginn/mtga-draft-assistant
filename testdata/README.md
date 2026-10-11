@@ -45,10 +45,17 @@ fixtures from before and after can both be kept and both be tested.
    every key, so the line keeps its real shape, and zero the values: numbers
    to `0`, strings to `""`, lists to `[]`, and maps keyed by what the account
    owns (`CustomTokens`, `Vouchers`) to `{}`. In practice that means the whole
-   `InventoryInfo` object (currency, wildcards, cosmetics owned), the
-   cosmetics on a deck (`Sleeve`, `DeckArtId`), and any timestamp that
-   carries a UTC offset. Log line timestamps (`10/10/2026 12:44:31 PM`) stay:
-   they are part of the log's format.
+   inventory object wherever it appears (`InventoryInfo`, and the
+   `DTO_InventoryInfo` that bot-draft pick responses carry: currency,
+   wildcards, cosmetics owned), the cosmetics on a deck (`Sleeve`,
+   `DeckArtId`), and any timestamp that carries a UTC offset (set to Arena's
+   own zero value, `0001-01-01T00:00:00`). Log line timestamps
+   (`10/10/2026 12:44:31 PM`) stay: they are part of the log's format.
+
+   One exception to zeroing in place: a list of the account's courses
+   (`EventGetCoursesV2`'s `Courses`) keeps only the course for the drafted
+   event, scrubbed like any other. The rest are the account's own decks and
+   records, and zeroing them would leave entries that look like real courses.
 5. Commit it with a note in the PR saying which Arena version it came from.
 
 ## Recorded HTTP responses
