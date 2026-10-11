@@ -52,6 +52,22 @@ jobs:
       - name: The binary starts without a display
         run: ./bin/mtga-draft-assistant -version
 
+      # Linux measures this in the smoke job, under Xvfb. macOS runners have
+      # a logged-in session, so the real Metal window can open here. Three
+      # runs: the first pays the cold shader cache a fresh runner always has,
+      # the others show a relaunch. Reported, not gated (decision 19).
+      - name: Time to first frame
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          {
+            echo '### Time to first frame (macOS)'
+            echo
+            echo '```'
+            scripts/first-frame.sh bin/mtga-draft-assistant 3
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
   # Launches the real window under Xvfb with Mesa's software EGL, keeps the
   # first-paint screenshot for the reviewer, and fails if the app burns CPU
   # while nothing is happening (decision 10).
@@ -76,13 +92,15 @@ jobs:
       #
       # dbus-run-session gives the app a session bus, as every Linux desktop
       # does. Without one, godbus autolaunches a bus for go-gui's
-      # accessibility bridge, a path no user's machine takes and the likely
-      # cause of the multi-second stall before first paint seen on runners.
+      # accessibility bridge, a path no user's machine takes. Measured
+      # outside CI that autolaunch costs ~0.1 s, not the multi-second stall
+      # once seen on runners (#2); the startup line below now says which
+      # stage any such stall lands in.
       - name: Launch the app
         shell: bash
         run: |
           {
-            echo '### First paint'
+            echo '### First paint and time to first frame (Linux, Xvfb)'
             echo
             echo '```'
             dbus-run-session -- xvfb-run -a -s "-screen 0 420x760x24" make smoke

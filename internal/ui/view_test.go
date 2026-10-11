@@ -14,7 +14,7 @@ import (
 // text that landed on screen in reading order.
 func render(t *testing.T, model app.Model, width, height int) (*gui.Window, []string) {
 	t.Helper()
-	cfg := windowCfg(model)
+	cfg := windowCfg(model, Options{})
 	cfg.Width, cfg.Height = width, height
 	w := gui.NewTestWindow(t, cfg)
 	return w, texts(w.TestRender(nil))

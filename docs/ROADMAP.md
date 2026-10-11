@@ -44,19 +44,6 @@ by rating, with card images, before the pick timer matters. macOS and Linux
     Traditional Draft, the same way. Each unblocks its format in "Parse the
     remaining draft formats".
 
-- [ ] **Measure the time to first frame.**
-  - The app can report how long it took from process start to its first
-    presented frame (an environment variable or flag; off by default, and free
-    when off).
-  - The smoke job prints it beside idle CPU and RSS, and the startup target in
-    `CLAUDE.md` (250 ms) is checked against a real number on macOS and Linux.
-    The PR reports both, and proposes a gate if the CI number is stable enough
-    to hold one.
-  - Checks whether first paint waits on go-gui's accessibility bridge, which
-    connects to D-Bus before the first frame: CI saw a multi-second stall
-    with no session bus running (#2). If a real desktop ever waits on it, the
-    fix belongs upstream in go-gui, not in a workaround here.
-
 - [ ] **Find Arena's log, and say clearly when it cannot.**
   - A pure function from platform, home directory, and environment to an
     ordered list of candidate paths: the macOS path, the Windows path, and on
@@ -212,6 +199,9 @@ Each needs a decision from the maintainer before it becomes a task.
 - **Signals:** which colours are flowing, from what is still in packs late.
 - **Wheel prediction:** which cards in this pack are likely to come back.
 - **Draft history:** past drafts and how they did, from the log.
+- **A startup-time gate in CI.** The time to first frame is reported on every
+  PR (decision 19) but not gated; whether to fail CI on it, and at what
+  number, waits on enough CI runs to see how much it varies.
 
 ---
 
@@ -221,3 +211,8 @@ Each needs a decision from the maintainer before it becomes a task.
 
 - [x] Project skeleton: window with first-paint empty state, headless view tests,
   lint rules, CI with smoke launch and size budget, nightly loop. (1–18)
+
+### Milestone 1
+
+- [x] Time to first frame: `-startup-time` reports it by stage, printed by
+  `make smoke` and CI's macOS job; the accessibility bridge measured. (19)

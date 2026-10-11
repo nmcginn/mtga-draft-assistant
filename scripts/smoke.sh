@@ -17,7 +17,8 @@
 # sleep on a slow runner; and before rendering starts the app can sit blocked
 # and quiet (for example while D-Bus starts up for go-gui's accessibility
 # bridge), which looks like "settled" if CPU is all that is watched. Time to
-# first frame is its own measurement (see the roadmap).
+# first frame is measured by the app itself (-startup-time, decision 19) and
+# printed beside the idle numbers; it is reported, not gated.
 set -eu
 
 if [ "$#" -ne 2 ]; then
@@ -35,14 +36,19 @@ startup_limit=${SMOKE_STARTUP_SECONDS:-30}
 # never sleeps burns roughly 500.
 max_ticks=${SMOKE_MAX_IDLE_TICKS:-10}
 
-"$bin" &
+# The app's stderr goes to a file so the startup line can be picked out of
+# it; it is shown in full if anything goes wrong.
+log=$(mktemp)
+"$bin" -startup-time 2>"$log" &
 pid=$!
-trap 'kill "$pid" 2>/dev/null || true' EXIT
+trap 'kill "$pid" 2>/dev/null || true; rm -f "$log"' EXIT
+show_log() { sed 's/^/  app: /' "$log" >&2; }
 
 cpu_ticks() { awk '{ print $14 + $15 }' "/proc/$pid/stat"; }
 alive() {
 	if ! kill -0 "$pid" 2>/dev/null; then
 		wait "$pid" || true
+		show_log
 		echo "the app exited during startup; its output is above" >&2
 		exit 1
 	fi
@@ -61,6 +67,7 @@ tick() {
 	waited=$((waited + 1))
 	alive
 	if [ "$waited" -ge "$startup_limit" ]; then
+		show_log
 		echo "the app was still $1 ${startup_limit}s after launch" >&2
 		exit 1
 	fi
@@ -93,10 +100,21 @@ after=$(cpu_ticks)
 used=$((after - before))
 rss=$(awk '/^VmRSS/ { print $2 " " $3 }' "/proc/$pid/status")
 
+# The app prints this at the start of its second frame, just after the first
+# was presented; the waits above outlast that by seconds.
+first_frame=$(grep '^startup:' "$log" || true)
+if [ -z "$first_frame" ]; then
+	show_log
+	echo "the app painted but never reported its time to first frame (-startup-time)" >&2
+	exit 1
+fi
+
 echo "first paint: $shot"
-echo "startup: painted within ${painted_at}s, settled within ${waited}s, using $startup_ticks ticks (includes Mesa compiling shaders on a cold cache)"
+echo "$first_frame"
+echo "settled: painted within ${painted_at}s, settled within ${waited}s, using $startup_ticks ticks (includes Mesa compiling shaders on a cold cache)"
 echo "idle CPU: $used ticks over ${window}s (budget $max_ticks); RSS: $rss"
 if [ "$used" -gt "$max_ticks" ]; then
+	show_log
 	echo "the app is not idle while nothing is happening; something is redrawing or polling too often" >&2
 	exit 1
 fi
