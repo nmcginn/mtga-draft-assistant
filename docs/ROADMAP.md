@@ -40,8 +40,10 @@ by rating, with card images, before the pick timer matters. macOS and Linux
     the event through at least three picks. Unblocks the parsing task.
     Premier Draft, FRA, all 42 picks:
     `testdata/logs/2026-10-fra-premier-full-draft.log`.
-  - [ ] The other two of Premier Draft, Quick Draft (bot draft), and
-    Traditional Draft, the same way. Each unblocks its format in "Parse the
+  - [x] Quick Draft (bot draft), the same way. Unblocks its format in "Parse
+    the remaining draft formats". FRA, all 42 picks:
+    `testdata/logs/2026-10-fra-quick-full-draft.log`.
+  - [ ] Traditional Draft, the same way. Unblocks its format in "Parse the
     remaining draft formats".
 
 - [ ] **Find Arena's log, and say clearly when it cannot.**
