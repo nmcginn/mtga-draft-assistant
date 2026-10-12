@@ -28,9 +28,14 @@ build the deck from what you drafted.
    **Detailed Logs (Plugin Support)**. Without it, Arena doesn't log drafts.
 2. Start the assistant, then Arena (in either order).
 
-Coming with the first roadmap tasks: the assistant will find Arena's log on
-its own on macOS and inside common Wine/Proton prefixes on Linux, with a
-`-log "/path/to/Player.log"` flag for anywhere else.
+The assistant finds Arena's log on its own on macOS, on Windows, and on Linux
+inside Wine, Lutris, Bottles, and Steam (Proton) prefixes. While it waits, it
+lists where it is looking. If Arena is installed somewhere else, point it at the
+log:
+
+```sh
+./bin/mtga-draft-assistant -log "/path/to/Player.log"
+```
 
 ## Install
 

@@ -12,6 +12,7 @@ type Theme struct {
 
 	HeadlineSize float32
 	BodySize     float32
+	SmallSize    float32
 }
 
 // Dark is the default theme. Arena is dark, and a companion window that
@@ -23,15 +24,22 @@ var Dark = Theme{
 
 	HeadlineSize: 22,
 	BodySize:     14,
+	SmallSize:    12,
 }
 
 // headline is the text style for the one most important line in a view.
 func (t Theme) headline() gui.TextStyle {
-	return gui.TextStyle{Color: t.Text, Size: t.HeadlineSize}
+	return gui.TextStyle{Color: t.Text, Size: t.HeadlineSize, Align: gui.TextAlignCenter}
 }
 
 // muted is the text style for supporting detail, centred under the headline
 // it supports.
 func (t Theme) muted() gui.TextStyle {
 	return gui.TextStyle{Color: t.TextMuted, Size: t.BodySize, Align: gui.TextAlignCenter}
+}
+
+// small is the text style for reference detail a user reads only if they
+// need it: where the assistant looked, which file it is reading.
+func (t Theme) small() gui.TextStyle {
+	return gui.TextStyle{Color: t.TextMuted, Size: t.SmallSize, Align: gui.TextAlignCenter}
 }

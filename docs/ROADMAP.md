@@ -46,23 +46,6 @@ by rating, with card images, before the pick timer matters. macOS and Linux
   - [ ] Traditional Draft, the same way. Unblocks its format in "Parse the
     remaining draft formats".
 
-- [ ] **Find Arena's log, and say clearly when it cannot.**
-  - A pure function from platform, home directory, and environment to an
-    ordered list of candidate paths: the macOS path, the Windows path, and on
-    Linux the Windows path inside the common Wine, Lutris, Bottles, and Steam
-    Proton prefixes (confirm Arena's Steam app id). See `docs/ARCHITECTURE.md`.
-  - A `-log <path>` flag that overrides discovery. A path that does not exist
-    is an error at startup naming the path, not a silent fallback.
-  - Discovery runs off the UI thread and posts `app.LogFound`. While nothing is
-    found it checks again every few seconds (a `stat` per candidate, nothing
-    more), so launching Arena after the assistant just works.
-  - The waiting state lists where it looked, and says how to pass `-log`.
-  - The first goroutine the app starts lands with the helper every later one
-    uses: it recovers a panic and posts it as an error the window shows
-    (decision 4).
-  - Tests: every platform's candidates from a fake home and environment; a
-    missing home; no candidates existing; the flag overriding discovery.
-
 - [ ] **Follow the log as it grows.**
   - Reads only new bytes from the last offset on a short poll (decision 14);
     buffers a trailing partial line until its newline arrives.
@@ -73,6 +56,8 @@ by rating, with card images, before the pick timer matters. macOS and Linux
     draft already in progress is picked up, without blocking first paint.
   - The core (given an offset, a size, and the bytes read, return complete lines
     and the next offset) is a pure function; the polling loop is thin.
+  - When the log disappears, post `app.LogLost` and start the search again
+    (`background.FindLog`'s start), so the window lists where it is looking.
   - Tests: empty file, partial line completed by a later read, truncation,
     replacement, a multi-megabyte log read incrementally, a file that
     disappears.
@@ -201,6 +186,10 @@ Each needs a decision from the maintainer before it becomes a task.
 - **Signals:** which colours are flowing, from what is still in packs late.
 - **Wheel prediction:** which cards in this pack are likely to come back.
 - **Draft history:** past drafts and how they did, from the log.
+- **More places to find the log.** Steam libraries on a second drive (read
+  from Steam's `libraryfolders.vdf`) and the Heroic launcher's prefixes. Each
+  means reading another application's files, whose layout should come from a
+  real install, not from memory (decision 20).
 - **A startup-time gate in CI.** The time to first frame is reported on every
   PR (decision 19) but not gated; whether to fail CI on it, and at what
   number, waits on enough CI runs to see how much it varies.
@@ -218,3 +207,6 @@ Each needs a decision from the maintainer before it becomes a task.
 
 - [x] Time to first frame: `-startup-time` reports it by stage, printed by
   `make smoke` and CI's macOS job; the accessibility bridge measured. (19)
+- [x] Finding Arena's log: the usual places on macOS, Windows, and Linux prefixes
+  (Wine, Lutris, Bottles, Steam), `-log`, a waiting state that says where it
+  looked, and panics in background tasks shown in the window. (6, 20, 21)

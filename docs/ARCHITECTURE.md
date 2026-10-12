@@ -12,6 +12,13 @@ internal/
   ui/                  go-gui views over an app.Model, the Theme, ui.Post for
                        handing messages to the UI thread, and run.go: the one
                        file that opens a real window.
+  arena/               Arena's log: where it may be on each platform (pure),
+                       and the search that looks there until it turns up.
+                       Following the log and parsing drafts land here next.
+  background/          Every goroutine the app starts, through one helper that
+                       recovers a panic and posts it to the window (decision
+                       4); and the tasks themselves, which call the I/O
+                       packages and turn what they report into app messages.
   startup/             Time to first frame: when each stage of startup
                        finished, and the one-line report -startup-time prints
                        (decision 19).
@@ -23,9 +30,6 @@ Planned packages, added by the roadmap task that first needs each one (and
 added to this map by the same PR):
 
 ```
-  arena/               Where Player.log lives on each platform, following it
-                       from the last offset, and turning its lines into typed
-                       draft events. Parsing is pure; following is the only I/O.
   draft/               Picks, packs, pools: the pure draft model and the
                        ranking of a pack against ratings.
   store/               The SQLite cache: schema, migrations, reads and writes
@@ -125,7 +129,11 @@ Everything lives under `os.UserCacheDir()/mtga-draft-assistant` (decision 16):
 
 - **Idle:** no measurable CPU while nothing changes. The smoke job fails above
   2% of a core over five idle seconds (decision 10). go-gui only redraws when
-  something is invalidated; the log follower's poll is a `stat`.
+  something is invalidated; the log follower's poll is a `stat`. While no log
+  has been found, the search looks every 3 s: one glob per place (seven on
+  Linux, one on macOS), and it tells the window only when the answer changes,
+  so waiting for Arena never redraws (decision 20). The smoke job runs in this
+  state and measures 0 ticks.
 - **Startup:** window up within 250 ms of launch; first paint never waits on
   disk beyond what the first frame shows, or on the network. Measured with
   `-startup-time` (decision 19); `make smoke` and CI's macOS job print it.
@@ -154,10 +162,15 @@ to `Player-prev.log` on the next launch. Draft events only appear with
 | Windows | `%USERPROFILE%\AppData\LocalLow\Wizards Of The Coast\MTGA\Player.log` |
 | Linux (Wine, Lutris, Proton) | The Windows path inside the prefix: `<prefix>/drive_c/users/<user>/AppData/LocalLow/Wizards Of The Coast/MTGA/Player.log` |
 
-For Steam's Proton the prefix is under
-`steamapps/compatdata/<appid>/pfx`. The task that implements log discovery
-confirms Arena's Steam app id and the common Lutris and Bottles prefixes, and
-keeps a `-log <path>` flag for everything else.
+Arena's Steam app id is **2141910**, so Proton's prefix is
+`steamapps/compatdata/2141910/pfx`, and its user is `steamuser`. The search
+(`arena.Candidates`, decision 20) looks in, on Linux and in this order:
+`$WINEPREFIX`, `~/.wine`, every Lutris prefix under `~/Games`, every bottle
+under Bottles' data directory (native and Flatpak), and the Proton prefix under
+each of `~/.steam/steam`, `$XDG_DATA_HOME/Steam` (default
+`~/.local/share/Steam`) and Flatpak Steam's `~/.var/app/com.valvesoftware.Steam`.
+Inside a prefix any user name matches. Anywhere else, `-log <path>` names the
+file (or the folder holding it).
 
 ### Building
 
