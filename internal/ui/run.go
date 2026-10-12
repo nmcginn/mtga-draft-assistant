@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"context"
+
 	"github.com/go-gui-org/go-gui/gui"
 	"github.com/go-gui-org/go-gui/gui/backend"
 
@@ -17,8 +19,8 @@ const (
 )
 
 // windowCfg is the window's configuration, separate from Run so a test can
-// build the same window headless.
-func windowCfg(model app.Model, opts Options) gui.WindowCfg {
+// build the same window headless. ctx ends the background tasks.
+func windowCfg(ctx context.Context, model app.Model, opts Options) gui.WindowCfg {
 	view := mainView
 	now := opts.clock()
 	if opts.Startup != nil {
@@ -38,6 +40,12 @@ func windowCfg(model app.Model, opts Options) gui.WindowCfg {
 				opts.Startup.WindowCreated = now()
 			}
 			w.SetView(view)
+			// Started here, not before, because they report to this
+			// window; and they only start goroutines, so the first frame
+			// does not wait on them.
+			if opts.Start != nil {
+				opts.Start(ctx, func(msg app.Msg) { Post(w, msg) })
+			}
 		},
 	}
 }
@@ -47,5 +55,7 @@ func windowCfg(model app.Model, opts Options) gui.WindowCfg {
 // the first frame that could wait on disk or network: whatever the first
 // frame needs is already in model.
 func Run(model app.Model, opts Options) {
-	backend.Run(gui.NewWindow(windowCfg(model, opts)))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	backend.Run(gui.NewWindow(windowCfg(ctx, model, opts)))
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-gui-org/go-gui/gui"
 
+	"github.com/nmcginn/mtga-draft-assistant/internal/background"
 	"github.com/nmcginn/mtga-draft-assistant/internal/startup"
 )
 
@@ -17,6 +18,10 @@ type Options struct {
 	// exactly as it would be without the option (decision 19).
 	Startup      *startup.Timeline
 	OnFirstFrame func(startup.Timeline)
+
+	// Start launches the background tasks once the window exists, with a
+	// context that ends when the window closes. Nil starts nothing.
+	Start background.Start
 
 	// now is the clock, swapped for a fake in tests.
 	now func() time.Time

@@ -168,3 +168,25 @@ CI's macOS test job print it on every PR. It is reported, not gated: a fresh
 runner always has a cold shader cache, which a user's second launch never
 does, so CI's number overstates what users see. Any gate is the maintainer's
 call.
+
+### 20. Finding the log: glob the usual places, newest wins, say where we looked
+
+`arena.Candidates` is a pure function from platform, home, and environment to
+glob patterns, one per place Arena is commonly installed; a pattern's wildcards
+stand for what varies (a Lutris game folder, a bottle's name, the user inside a
+prefix) and everything else is escaped. When more than one log exists, the one
+written most recently is used, since that is the install in use. The search
+looks every 3 s until it finds one, and posts only twice at most: where it looked,
+then what it found. `-log` is checked before the window opens; a bad path is an
+error on stderr and exit status 2, never a quiet search, and a folder holding a
+`Player.log` is taken to mean that file. Steam libraries on other drives, and
+launchers beyond Wine, Lutris, Bottles and Steam, are left to `-log` for now.
+
+### 21. Background tasks report failures to the window, once
+
+Every goroutine starts through `background.Go`, which recovers a panic, writes
+the stack to stderr for a bug report, and posts `app.TaskFailed`. The window then
+says which task stopped and to restart, and links the issue tracker. Only the
+first failure is kept: it is the likeliest to explain the rest, and the window
+stays on it until restart, because the stopped task will not update anything
+else it would have shown.

@@ -19,3 +19,6 @@ const homepage = "https://github.com/nmcginn/mtga-draft-assistant"
 func UserAgent() string {
 	return Name + "/" + Version + " (+" + homepage + ")"
 }
+
+// IssuesURL is where a user reports something going wrong.
+const IssuesURL = homepage + "/issues"

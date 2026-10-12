@@ -6,9 +6,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
-	"github.com/nmcginn/mtga-draft-assistant/internal/app"
+	"github.com/nmcginn/mtga-draft-assistant/internal/background"
 	"github.com/nmcginn/mtga-draft-assistant/internal/startup"
 	"github.com/nmcginn/mtga-draft-assistant/internal/ui"
 	"github.com/nmcginn/mtga-draft-assistant/internal/version"
@@ -19,6 +20,7 @@ func main() {
 	mainAt := time.Now()
 
 	showVersion := flag.Bool("version", false, "print the version and exit")
+	logPath := flag.String("log", "", "the path to Arena's Player.log, if the assistant does not find it on its own")
 	startupTime := flag.Bool("startup-time", false, "print to stderr how long the first frame took to reach the screen")
 	flag.Parse()
 
@@ -31,11 +33,22 @@ func main() {
 		os.Exit(2)
 	}
 
-	var opts ui.Options
+	// A failed lookup leaves home empty, and the search skips the places
+	// under it; the window then says where it did look.
+	home, _ := os.UserHomeDir()
+	model, start, err := background.FindLog(background.LogSetup{
+		Flag: *logPath, GOOS: runtime.GOOS, Home: home, Getenv: os.Getenv,
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+
+	opts := ui.Options{Start: start}
 	if *startupTime {
 		timeline := startup.New(mainAt)
 		opts.Startup = &timeline
 		opts.OnFirstFrame = func(t startup.Timeline) { fmt.Fprintln(os.Stderr, t.Report()) }
 	}
-	ui.Run(app.New(), opts)
+	ui.Run(model, opts)
 }

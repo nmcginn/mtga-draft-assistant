@@ -32,7 +32,7 @@ func timedWindow(t *testing.T) (*gui.Window, *startup.Timeline, *[]startup.Timel
 		OnFirstFrame: func(t startup.Timeline) { reports = append(reports, t) },
 		now:          tickingClock(),
 	}
-	cfg := windowCfg(app.New(), opts)
+	cfg := windowCfg(t.Context(), app.New(), opts)
 	cfg.Width, cfg.Height = defaultWidth, defaultHeight
 	return gui.NewTestWindow(t, cfg), &tl, &reports
 }
@@ -105,7 +105,7 @@ func TestATimedWindowShowsTheSameFirstPaintAsAnUntimedOne(t *testing.T) {
 
 func TestTimingWithNobodyToTellIsHarmless(t *testing.T) {
 	tl := startup.Timeline{}
-	w := gui.NewTestWindow(t, windowCfg(app.New(), Options{Startup: &tl}))
+	w := gui.NewTestWindow(t, windowCfg(t.Context(), app.New(), Options{Startup: &tl}))
 	w.FrameFn()
 	w.FrameFn()
 	if tl.FirstFrame.IsZero() {
@@ -118,7 +118,7 @@ func TestWithTimingOffNothingIsRecorded(t *testing.T) {
 	// happens to exist is not touched.
 	reads := 0
 	opts := Options{now: func() time.Time { reads++; return time.Time{} }}
-	w := gui.NewTestWindow(t, windowCfg(app.New(), opts))
+	w := gui.NewTestWindow(t, windowCfg(t.Context(), app.New(), opts))
 	w.FrameFn()
 	w.FrameFn()
 	if reads != 0 {
