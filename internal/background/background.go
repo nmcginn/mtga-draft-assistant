@@ -7,6 +7,7 @@ package background
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"runtime/debug"
@@ -40,8 +41,8 @@ func Go(task string, post Post, fn func()) {
 	}()
 }
 
-// LogSetup is everything deciding how the log is found depends on, gathered
-// by main so that the decision itself can be tested.
+// LogSetup is everything deciding how the log is found and followed depends
+// on, gathered by main so that the decision itself can be tested.
 type LogSetup struct {
 	// Flag is the -log value, or "" to search.
 	Flag string
@@ -53,30 +54,72 @@ type LogSetup struct {
 	// Every is how often to look again while nothing is found; zero means
 	// arena.PollEvery.
 	Every time.Duration
+	// Follow sets how often the found log is checked and how long it may go
+	// missing; its zero value is the defaults. Its callbacks are set by
+	// FindLog, not here.
+	Follow arena.Follower
+	// Lines receives the log's lines, in order, on the background goroutine.
+	// Nil discards them.
+	Lines func([]string)
 }
+
+// The task the log goroutine does, as the window names it if it stops.
+const logTask = "Watching Arena's log"
 
 // FindLog decides, before the window opens, how the log will be found. With
 // -log, the path is checked now, and a bad one is an error for main to report
 // and exit on, never a quiet fall back to searching; the returned model is
-// already following it and there is nothing to start. Without it, the model
-// is the waiting state and Start runs the search.
+// already following it. Without it, the model is the waiting state.
+//
+// Either way, Start runs one goroutine that finds the log (unless -log
+// already did), follows it, and, when it goes away, says so and looks for
+// it again: in Arena's usual places, or with -log, at that path alone.
 func FindLog(s LogSetup) (app.Model, Start, error) {
+	model := app.New()
+	var path string
+	var cands []arena.Candidate
 	if s.Flag != "" {
-		path, err := arena.ResolveFlag(s.Flag)
+		p, err := arena.ResolveFlag(s.Flag)
 		if err != nil {
 			return app.Model{}, nil, err
 		}
-		return app.New().Apply(app.LogFound{Path: path}), nil, nil
+		path = p
+		cands = []arena.Candidate{arena.Exactly(s.GOOS, s.Home, p)}
+		model = model.Apply(app.LogFound{Path: p})
+	} else {
+		cands = arena.Candidates(s.GOOS, s.Home, s.Getenv)
 	}
-	cands := arena.Candidates(s.GOOS, s.Home, s.Getenv)
 	every := s.Every
 	if every <= 0 {
 		every = arena.PollEvery
 	}
 	start := func(ctx context.Context, post Post) {
-		Go("Looking for Arena's log", post, func() {
+		Go(logTask, post, func() {
+			watchLog(ctx, path, path, cands, every, follower(s, post), post)
+		})
+	}
+	return model, start, nil
+}
+
+// follower is s.Follow with its callbacks turned into app messages.
+func follower(s LogSetup, post Post) arena.Follower {
+	f := s.Follow
+	f.Lines = s.Lines
+	f.Restarted = func() { post(app.SessionStarted{}) }
+	f.CaughtUp = func() { post(app.LogCaughtUp{}) }
+	f.Failed = func(err error) { post(app.LogUnreadable{Err: err}) }
+	return f
+}
+
+// watchLog follows path, or first searches cands for it when path is "",
+// and goes back to searching each time the log is lost, until ctx ends.
+// given is the path named with -log, if any, for the window to name.
+func watchLog(ctx context.Context, path, given string, cands []arena.Candidate, every time.Duration, f arena.Follower, post Post) {
+	for {
+		if path == "" {
 			arena.Watch(ctx, cands, every, func(r arena.Search) {
 				if r.Found != "" {
+					path = r.Found
 					post(app.LogFound{Path: r.Found})
 					return
 				}
@@ -84,9 +127,16 @@ func FindLog(s LogSetup) (app.Model, Start, error) {
 				for i, c := range r.Looked {
 					looked[i] = c.Where
 				}
-				post(app.LogSearched{Looked: looked})
+				post(app.LogSearched{Looked: looked, Given: given})
 			})
-		})
+			if path == "" {
+				return // ctx ended before the log turned up
+			}
+		}
+		if err := f.Run(ctx, path); !errors.Is(err, arena.ErrLogGone) {
+			return
+		}
+		post(app.LogLost{})
+		path = ""
 	}
-	return app.New(), start, nil
 }

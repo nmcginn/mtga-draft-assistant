@@ -15,6 +15,10 @@ SIZE_BUDGET_MIB := 28
 
 RELEASE_FLAGS := -trimpath -ldflags="-s -w"
 
+# The log `make smoke` follows for its second launch, to check that following
+# a log is as idle as waiting for one.
+SMOKE_LOG := testdata/logs/2026-10-fra-premier-full-draft.log
+
 .DEFAULT_GOAL := help
 .PHONY: help build release run test race lint fmt fmt-check vet vuln cross size smoke check clean
 
@@ -63,6 +67,7 @@ size: release ## Fail if the release binary is over its size budget
 
 smoke: release ## Launch the real window, screenshot it, and check it idles (Linux, needs X or xvfb-run)
 	scripts/smoke.sh bin/$(BIN) bin/first-paint.png
+	scripts/smoke.sh bin/$(BIN) bin/following.png -log $(SMOKE_LOG)
 
 check: fmt-check vet lint race cross size ## Everything CI runs on every platform — run before pushing
 	@echo "All checks passed."

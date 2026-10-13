@@ -243,3 +243,28 @@ func TestTheRealSearchReachesTheWindow(t *testing.T) {
 	}
 	framesUntil(t, startWith(t, start), "Wine: ~/.wine")
 }
+
+func TestTheWindowSaysWhenItCannotReadTheLogAndWhatToDo(t *testing.T) {
+	w, _ := render(t, app.New().Apply(app.LogFound{Path: "/logs/Player.log"}), defaultWidth, defaultHeight)
+	Post(w, app.LogUnreadable{Err: errors.New("open /logs/Player.log: permission denied")})
+	w.FrameFn()
+	got := texts(w.TestRender(nil))
+	if !slices.Contains(got, "Can't read Arena's log") {
+		t.Errorf("window shows %q, want the unreadable headline", got)
+	}
+	if !slices.ContainsFunc(got, func(s string) bool { return strings.Contains(s, "permission denied") && strings.Contains(s, "-log") }) {
+		t.Errorf("window shows %q, want the reason and what to do", got)
+	}
+}
+
+func TestWhileCatchingUpOnTheLogTheWindowSaysSoThenThatItIsReady(t *testing.T) {
+	w, got := render(t, app.New().Apply(app.LogFound{Path: "/logs/Player.log"}), defaultWidth, defaultHeight)
+	if !slices.Contains(got, "Reading Arena's log") {
+		t.Errorf("before catching up the window shows %q", got)
+	}
+	Post(w, app.LogCaughtUp{})
+	w.FrameFn()
+	if got := texts(w.TestRender(nil)); !slices.Contains(got, "Ready for your next draft") {
+		t.Errorf("after catching up the window shows %q", got)
+	}
+}
