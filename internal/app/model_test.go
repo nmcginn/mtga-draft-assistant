@@ -2,6 +2,8 @@ package app
 
 import (
 	"errors"
+	"fmt"
+	"io/fs"
 	"reflect"
 	"slices"
 	"strings"
@@ -60,7 +62,11 @@ func TestEveryPhaseHasAHeadlineAndADetail(t *testing.T) {
 		"first paint":          New(),
 		"searched, not found":  New().Apply(LogSearched{Looked: []string{"Wine: ~/.wine"}}),
 		"nowhere to look":      New().Apply(LogSearched{}),
+		"-log file gone":       New().Apply(LogSearched{Looked: []string{"-log: ~/logs"}, Given: "/home/sam/logs/Player.log"}),
 		"following":            New().Apply(LogFound{Path: "/logs/Player.log"}),
+		"caught up":            New().Apply(LogFound{Path: "/logs/Player.log"}).Apply(LogCaughtUp{}),
+		"unreadable":           New().Apply(LogFound{Path: "/logs/Player.log"}).Apply(LogUnreadable{Err: errors.New("permission denied")}),
+		"unreadable, no error": New().Apply(LogFound{Path: "/logs/Player.log"}).Apply(LogUnreadable{}),
 		"a task failed":        New().Apply(TaskFailed{Task: "Looking for Arena's log", Err: errors.New("boom")}),
 		"failed with no error": New().Apply(TaskFailed{Task: "Looking for Arena's log"}),
 	} {
@@ -161,5 +167,106 @@ func TestTheFirstFailureIsKept(t *testing.T) {
 		Apply(TaskFailed{Task: "second", Err: errors.New("b")})
 	if m.Failure.Task != "first" {
 		t.Errorf("failure = %+v, want the first one", m.Failure)
+	}
+}
+
+// caughtUp is a model following /logs/Player.log that has read it to the end.
+func caughtUp() Model {
+	return New().Apply(LogFound{Path: "/logs/Player.log"}).Apply(LogCaughtUp{})
+}
+
+func TestUntilTheLogHasBeenReadToTheEndTheWindowSaysItIsReading(t *testing.T) {
+	// A draft already under way may still be in the unread part, so
+	// "ready for your next draft" would not yet be true.
+	reading := New().Apply(LogFound{Path: "/logs/Player.log"}).Status()
+	ready := caughtUp().Status()
+	if reading.Headline == ready.Headline {
+		t.Errorf("reading and caught up both say %q", reading.Headline)
+	}
+	if !strings.Contains(reading.Headline, "Reading") || !strings.Contains(reading.Footnote, "/logs/Player.log") {
+		t.Errorf("reading status = %+v, want it to say so and name the file", reading)
+	}
+	if ready.Headline != "Ready for your next draft" {
+		t.Errorf("caught-up headline = %q", ready.Headline)
+	}
+}
+
+func TestANewArenaSessionIsReadFromItsStartAgain(t *testing.T) {
+	m := caughtUp().Apply(SessionStarted{})
+	if m.CaughtUp || m.Phase != PhaseFollowing || m.LogPath != "/logs/Player.log" {
+		t.Errorf("after SessionStarted: %+v, want still following, catching up", m)
+	}
+	if m = m.Apply(LogCaughtUp{}); !m.CaughtUp {
+		t.Error("the new session never counted as caught up")
+	}
+}
+
+func TestAnUnreadableLogSaysWhyAndWhatToDo(t *testing.T) {
+	m := caughtUp().Apply(LogUnreadable{Err: errors.New("open /logs/Player.log: permission denied")})
+	s := m.Status()
+	if !strings.Contains(s.Headline, "Can't read") {
+		t.Errorf("headline = %q, want it to say the log cannot be read", s.Headline)
+	}
+	for _, want := range []string{"permission denied", "can read the file", "-log", "keeps trying"} {
+		if !strings.Contains(s.Detail, want) {
+			t.Errorf("detail = %q, want it to contain %q", s.Detail, want)
+		}
+	}
+	if !strings.Contains(s.Footnote, "/logs/Player.log") {
+		t.Errorf("footnote = %q, want the path", s.Footnote)
+	}
+}
+
+func TestReadingAgainClearsTheError(t *testing.T) {
+	m := caughtUp().Apply(LogUnreadable{Err: errors.New("x")}).Apply(LogCaughtUp{})
+	if m.Unreadable != "" || m.Status().Headline != "Ready for your next draft" {
+		t.Errorf("after reading again: %+v", m)
+	}
+}
+
+func TestLosingOrFindingTheLogForgetsHowReadingTheOldOneWent(t *testing.T) {
+	broken := caughtUp().Apply(LogUnreadable{Err: errors.New("x")})
+	if lost := broken.Apply(LogLost{}); !reflect.DeepEqual(lost, New()) {
+		t.Errorf("after LogLost: %+v, want the first-paint state", lost)
+	}
+	if found := caughtUp().Apply(LogFound{Path: "/other/Player.log"}); found.CaughtUp || found.Unreadable != "" {
+		t.Errorf("a newly found log started out %+v, want unread", found)
+	}
+}
+
+func TestReadingNewsArrivingAfterTheLogWasLostIsIgnored(t *testing.T) {
+	// The follower may have queued a message just before the log went.
+	lost := caughtUp().Apply(LogLost{})
+	for _, msg := range []Msg{LogCaughtUp{}, SessionStarted{}, LogUnreadable{Err: errors.New("x")}} {
+		if got := lost.Apply(msg); !reflect.DeepEqual(got, lost) {
+			t.Errorf("%T while looking changed the state to %+v", msg, got)
+		}
+	}
+}
+
+func TestWhenTheLogNamedWithTheFlagGoesMissingTheWindowDoesNotAdviseTheFlag(t *testing.T) {
+	// The user already named the file; telling them to name it, or listing
+	// the folder they chose, would be no help.
+	m := caughtUp().Apply(LogLost{}).Apply(LogSearched{Looked: []string{"-log: ~/logs"}, Given: "/home/sam/logs/Player.log"})
+	s := m.Status()
+	if !strings.Contains(s.Detail, "/home/sam/logs/Player.log") {
+		t.Errorf("detail = %q, want the file named", s.Detail)
+	}
+	if strings.Contains(s.Detail, `-log "`) || len(s.Places) != 0 {
+		t.Errorf("status = %+v, want neither the -log hint nor a list of places", s)
+	}
+	if !strings.Contains(s.Footnote, "without -log") {
+		t.Errorf("footnote = %q, want how to go back to the usual places", s.Footnote)
+	}
+	if found := m.Apply(LogFound{Path: "/home/sam/logs/Player.log"}); found.Given != "" {
+		t.Errorf("finding it again kept Given = %q", found.Given)
+	}
+}
+
+func TestAnOSErrorIsShownByItsReasonWithoutRepeatingThePath(t *testing.T) {
+	err := &fs.PathError{Op: "open", Path: "/logs/Player.log", Err: fs.ErrPermission}
+	s := caughtUp().Apply(LogUnreadable{Err: fmt.Errorf("reading: %w", err)}).Status()
+	if !strings.Contains(s.Detail, "(permission denied)") || strings.Contains(s.Detail, "/logs/Player.log") {
+		t.Errorf("detail = %q, want the reason and not the path, which the footnote has", s.Detail)
 	}
 }

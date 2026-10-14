@@ -26,7 +26,8 @@ build the deck from what you drafted.
 
 1. In Arena, open **Options → Account** and turn on
    **Detailed Logs (Plugin Support)**. Without it, Arena doesn't log drafts.
-2. Start the assistant, then Arena (in either order).
+2. Start the assistant, then Arena (in either order). It keeps reading the
+   log as Arena writes it, and carries on by itself when Arena restarts.
 
 The assistant finds Arena's log on its own on macOS, on Windows, and on Linux
 inside Wine, Lutris, Bottles, and Steam (Proton) prefixes. While it waits, it

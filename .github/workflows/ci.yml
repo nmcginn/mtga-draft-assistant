@@ -70,7 +70,8 @@ jobs:
 
   # Launches the real window under Xvfb with Mesa's software EGL, keeps the
   # first-paint screenshot for the reviewer, and fails if the app burns CPU
-  # while nothing is happening (decision 10).
+  # while nothing is happening (decision 10): once still looking for Arena's
+  # log, and once following a fixture log.
   smoke:
     name: Launch, screenshot, idle
     runs-on: ubuntu-latest
@@ -111,7 +112,9 @@ jobs:
         if: always()
         with:
           name: first-paint
-          path: bin/first-paint.png
+          path: |
+            bin/first-paint.png
+            bin/following.png
           if-no-files-found: ignore
 
   # Its own job, outside `make check`, because it needs the network and a new

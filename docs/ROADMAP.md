@@ -46,22 +46,6 @@ by rating, with card images, before the pick timer matters. macOS and Linux
   - [ ] Traditional Draft, the same way. Unblocks its format in "Parse the
     remaining draft formats".
 
-- [ ] **Follow the log as it grows.**
-  - Reads only new bytes from the last offset on a short poll (decision 14);
-    buffers a trailing partial line until its newline arrives.
-  - Detects truncation (the file got smaller, or was replaced, because Arena
-    restarted) and starts again from the beginning, posting that a new Arena
-    session began.
-  - On first finding the log, reads the current session from the start, so a
-    draft already in progress is picked up, without blocking first paint.
-  - The core (given an offset, a size, and the bytes read, return complete lines
-    and the next offset) is a pure function; the polling loop is thin.
-  - When the log disappears, post `app.LogLost` and start the search again
-    (`background.FindLog`'s start), so the window lists where it is looking.
-  - Tests: empty file, partial line completed by a later read, truncation,
-    replacement, a multi-megabyte log read incrementally, a file that
-    disappears.
-
 - [ ] **Parse draft events from the log.** *Blocked on the first draft
   fixture.*
   - Turns log lines into typed events: a draft started (set, format, event),
@@ -210,3 +194,6 @@ Each needs a decision from the maintainer before it becomes a task.
 - [x] Finding Arena's log: the usual places on macOS, Windows, and Linux prefixes
   (Wine, Lutris, Bottles, Steam), `-log`, a waiting state that says where it
   looked, and panics in background tasks shown in the window. (6, 20, 21)
+- [x] Following the log: only new bytes, partial lines held back, restart and
+  loss detected, a loading state while catching up, read errors with what to
+  do, and the smoke job measuring idle while following. (14, 22)

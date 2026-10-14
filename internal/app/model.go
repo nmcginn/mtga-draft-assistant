@@ -6,7 +6,9 @@
 package app
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"slices"
 
 	"github.com/nmcginn/mtga-draft-assistant/internal/version"
@@ -38,6 +40,16 @@ type Model struct {
 	// was nowhere to look.
 	Searched bool
 	Looked   []string
+	// Given is the log named with -log, when that is the one file the
+	// search is waiting for; empty when it searches Arena's usual places.
+	Given string
+	// CaughtUp is whether the log has been read to its end since it was
+	// found or last started over. Until then the window says it is
+	// reading, because a draft already under way may still be coming.
+	CaughtUp bool
+	// Unreadable is why the log could not be read, while it cannot; empty
+	// otherwise.
+	Unreadable string
 	// Failure is the first background task that stopped unexpectedly, or
 	// nil. It is kept until restart: the task is not running any more, so
 	// whatever it would have shown never will.
@@ -68,10 +80,29 @@ type LogFound struct{ Path string }
 // file was deleted) and the assistant is looking again.
 type LogLost struct{}
 
+// LogCaughtUp reports that the followed log has been read to its end, so
+// everything Arena has written this session has been seen.
+type LogCaughtUp struct{}
+
+// SessionStarted reports that the followed log started over because Arena
+// was relaunched. Whatever was read from the old session no longer
+// describes what is on screen in Arena, and the new one is read from its
+// start.
+type SessionStarted struct{}
+
+// LogUnreadable reports that the log is there but reading it failed. The
+// follower keeps trying; LogCaughtUp says when it works again.
+type LogUnreadable struct{ Err error }
+
 // LogSearched reports that a search for the log looked in every one of
 // Looked and found nothing. The search goes on; this is sent once per
-// search, so the window can say where it is looking.
-type LogSearched struct{ Looked []string }
+// search, so the window can say where it is looking. Given is set when the
+// search is for the file named with -log, which went missing, rather than
+// Arena's usual places.
+type LogSearched struct {
+	Looked []string
+	Given  string
+}
 
 // TaskFailed reports that a background task stopped, typically because it
 // panicked: the goroutine recovered and sent this instead of taking the
@@ -81,10 +112,13 @@ type TaskFailed struct {
 	Err  error
 }
 
-func (LogFound) isMsg()    {}
-func (LogLost) isMsg()     {}
-func (LogSearched) isMsg() {}
-func (TaskFailed) isMsg()  {}
+func (LogFound) isMsg()       {}
+func (LogLost) isMsg()        {}
+func (LogSearched) isMsg()    {}
+func (LogCaughtUp) isMsg()    {}
+func (SessionStarted) isMsg() {}
+func (LogUnreadable) isMsg()  {}
+func (TaskFailed) isMsg()     {}
 
 // Apply returns the state after msg. It never fails: a message that does not
 // make sense in the current phase leaves the state as it was.
@@ -96,11 +130,40 @@ func (m Model) Apply(msg Msg) Model {
 		}
 		m.Phase = PhaseFollowing
 		m.LogPath = msg.Path
-		m.Searched, m.Looked = false, nil
+		m.Searched, m.Looked, m.Given = false, nil, ""
+		m.CaughtUp, m.Unreadable = false, ""
 	case LogLost:
 		m.Phase = PhaseFindingLog
 		m.LogPath = ""
-		m.Searched, m.Looked = false, nil
+		m.Searched, m.Looked, m.Given = false, nil, ""
+		m.CaughtUp, m.Unreadable = false, ""
+	case LogCaughtUp:
+		// The follower's messages describe the log it was following; one
+		// still queued when that log was lost has nothing to say.
+		if m.Phase != PhaseFollowing {
+			return m
+		}
+		m.CaughtUp, m.Unreadable = true, ""
+	case SessionStarted:
+		if m.Phase != PhaseFollowing {
+			return m
+		}
+		m.CaughtUp = false
+	case LogUnreadable:
+		if m.Phase != PhaseFollowing {
+			return m
+		}
+		m.CaughtUp = false
+		m.Unreadable = "no reason given"
+		// The window names the file already; an OS error would name it
+		// again, so only its reason is kept ("permission denied").
+		var pe *fs.PathError
+		switch {
+		case errors.As(msg.Err, &pe) && pe.Err != nil:
+			m.Unreadable = pe.Err.Error()
+		case msg.Err != nil:
+			m.Unreadable = msg.Err.Error()
+		}
 	case LogSearched:
 		// A search that finishes after the log was given another way (the
 		// -log flag) has nothing to add.
@@ -109,6 +172,7 @@ func (m Model) Apply(msg Msg) Model {
 		}
 		m.Searched = true
 		m.Looked = slices.Clone(msg.Looked)
+		m.Given = msg.Given
 	case TaskFailed:
 		if m.Failure != nil {
 			// The first failure is the one most likely to explain the rest.
@@ -149,12 +213,37 @@ func (m Model) Status() Status {
 	}
 	switch m.Phase {
 	case PhaseFollowing:
+		if m.Unreadable != "" {
+			return Status{
+				Headline: "Can't read Arena's log",
+				Detail: fmt.Sprintf("Reading it failed (%s). Check that your user account can read the file, "+
+					"or %s to read a copy. The assistant keeps trying in the meantime.", m.Unreadable, logFlagHint),
+				Footnote: "Trying to read " + m.LogPath,
+			}
+		}
+		if !m.CaughtUp {
+			return Status{
+				Headline: "Reading Arena's log",
+				Detail:   "Catching up on this Arena session, so a draft already under way shows up.",
+				Footnote: "Reading " + m.LogPath,
+			}
+		}
 		return Status{
 			Headline: "Ready for your next draft",
 			Detail:   "Start a draft in MTG Arena and the current pack appears here.",
 			Footnote: "Reading " + m.LogPath,
 		}
 	default:
+		if m.Given != "" {
+			// The user named this file, so the usual advice (where the
+			// assistant looked, and to name the file) is beside the point.
+			return Status{
+				Headline: "Waiting for the log you named",
+				Detail: "There is no file at " + m.Given + " any more. Arena starts a new log each time it launches; " +
+					"the assistant picks it up as soon as it is back.",
+				Footnote: "To look in Arena's usual places instead, restart the assistant without -log.",
+			}
+		}
 		if m.Searched && len(m.Looked) == 0 {
 			return Status{
 				Headline: "Can't tell where Arena keeps its log",
