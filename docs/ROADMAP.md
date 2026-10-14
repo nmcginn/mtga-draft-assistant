@@ -45,6 +45,10 @@ by rating, with card images, before the pick timer matters. macOS and Linux
     `testdata/logs/2026-10-fra-quick-full-draft.log`.
   - [ ] Traditional Draft, the same way. Unblocks its format in "Parse the
     remaining draft formats".
+  - [ ] A Premier Draft resumed after relaunching Arena mid-draft, from the
+    relaunch through the next pick. No fixture shows what a draft against
+    people logs on rejoining, so the parser cannot yet tell such a draft's
+    event or set (decision 23).
 
 - [ ] **Follow the log as it grows.**
   - Reads only new bytes from the last offset on a short poll (decision 14);
@@ -62,33 +66,17 @@ by rating, with card images, before the pick timer matters. macOS and Linux
     replacement, a multi-megabyte log read incrementally, a file that
     disappears.
 
-- [ ] **Parse draft events from the log.** *Blocked on the first draft
-  fixture.*
-  - Turns log lines into typed events: a draft started (set, format, event),
-    a pack shown (pack and pick number, card ids), a pick made (card id), the
-    draft ended (the pool).
-  - Covers every draft format that has a fixture in `testdata/logs/` when the
-    work starts; one is enough to begin. Arena may log each format
-    differently, so a format with no fixture is not guessed at: its lines are
-    skipped like any other unknown line, and the PR names the formats still
-    to come. Lines that are not draft events are skipped cheaply: most of the
-    log is not about drafting.
-  - Unknown or malformed draft lines are logged at debug level and skipped,
-    never fatal.
-  - Tests: every fixture, a line cut off mid-JSON, a pack seen twice (Arena
-    re-logs on reconnect), events out of the order expected.
-
 - [ ] **Parse the remaining draft formats.** *Each blocked on its fixture.*
   Whichever of these the parsing task did not already cover, one PR per
   format as its fixture lands: the parser learns that format's lines, and the
   same tests run against its fixture, including a whole draft replayed through
   the model once the next task exists. Tick a format here when it is
   covered, by either task.
-  - [ ] Premier Draft
-  - [ ] Quick Draft (bot draft)
+  - [x] Premier Draft
+  - [x] Quick Draft (bot draft)
   - [ ] Traditional Draft
 
-- [ ] **Track the draft in the model.** *Blocked on parsing.*
+- [ ] **Track the draft in the model.** *Needs the log follower (#9).*
   - `app.Model` gains the current draft: set, format, pack and pick number,
     the pack's card ids, the picks so far. Pure transitions from the parsed
     events, through `Apply`.
@@ -210,3 +198,5 @@ Each needs a decision from the maintainer before it becomes a task.
 - [x] Finding Arena's log: the usual places on macOS, Windows, and Linux prefixes
   (Wine, Lutris, Bottles, Steam), `-log`, a waiting state that says where it
   looked, and panics in background tasks shown in the window. (6, 20, 21)
+- [x] Parsing draft events: Premier and Quick Draft from their fixtures, cut
+  and repeated lines, and formats with no fixture skipped. (23)

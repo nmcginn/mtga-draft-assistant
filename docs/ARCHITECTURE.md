@@ -13,8 +13,10 @@ internal/
                        handing messages to the UI thread, and run.go: the one
                        file that opens a real window.
   arena/               Arena's log: where it may be on each platform (pure),
-                       and the search that looks there until it turns up.
-                       Following the log and parsing drafts land here next.
+                       the search that looks there until it turns up, and
+                       the Parser that turns its lines into draft events
+                       (pure; Premier and Quick Draft, decision 23).
+                       Following the log lands here next.
   background/          Every goroutine the app starts, through one helper that
                        recovers a panic and posts it to the window (decision
                        4); and the tasks themselves, which call the I/O

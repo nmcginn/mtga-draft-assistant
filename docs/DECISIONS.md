@@ -190,3 +190,21 @@ says which task stopped and to restart, and links the issue tracker. Only the
 first failure is kept: it is the likeliest to explain the rest, and the window
 stays on it until restart, because the stopped task will not update anything
 else it would have shown.
+
+### 23. Draft parsing: line shapes from fixtures, one stateful pure parser
+
+`arena.Parser` reads one line at a time and returns draft events: started, pack
+shown, pick made, ended. Its only state is plain data (a response header
+awaiting its body on the next line, the draft under way, the last pack shown),
+so it does no I/O and is tested by feeding it fixture lines; a new log needs a
+new Parser. Each format's lines come from its fixture: Premier Draft's
+`Draft.Notify`, `EventPlayerDraftMakePick` and `DraftCompleteDraft`; Quick
+Draft's `BotDraftDraftStatus` and `BotDraftDraftPick`, which count packs and
+picks from 0 (events count from 1). The format and set come from the event
+name (`PremierDraft_FRA_20260929`). A draft joined in a format with no fixture
+is skipped until the next join, rather than read as a format it may not be. A
+pick is taken from its request, not its confirmation; a pack identical to the
+last one shown is reported once. A bot draft's status names its event, so it
+starts a draft the log never saw joined (Arena relaunched mid-draft); a draft
+against people has no such line in any fixture yet. Skipped draft lines go to
+`slog` at debug level, which the default logger drops.
