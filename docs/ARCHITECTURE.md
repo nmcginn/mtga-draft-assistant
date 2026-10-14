@@ -14,9 +14,11 @@ internal/
                        file that opens a real window.
   arena/               Arena's log: where it may be on each platform (pure),
                        the search that looks there until it turns up, and
-                       the Parser that turns its lines into draft events
-                       (pure; Premier and Quick Draft, decision 23).
-                       Following the log lands here next.
+                       the follower that reads it as it grows: a pure Cursor
+                       that turns bytes into whole lines, around a thin
+                       poll (decision 22); and the Parser that turns those
+                       lines into draft events (pure; Premier and Quick
+                       Draft, decision 23).
   background/          Every goroutine the app starts, through one helper that
                        recovers a panic and posts it to the window (decision
                        4); and the tasks themselves, which call the I/O
@@ -95,8 +97,9 @@ UI thread reads or writes it (decision 6).
 - **Network:** `httptest.Server` serving recorded responses; the client under
   test is pointed at it. Tests never reach the real services.
 - **The real window:** `make smoke` under `xvfb-run` launches the release
-  binary, screenshots first paint, and checks idle CPU. CI uploads the
-  screenshot as the `first-paint` artifact.
+  binary twice, plainly and with `-log` naming a fixture, screenshots each
+  once it settles, and checks idle CPU in both. CI uploads the screenshots
+  (`first-paint.png`, `following.png`) as the `first-paint` artifact.
 
 ## Budgets
 
@@ -135,7 +138,17 @@ Everything lives under `os.UserCacheDir()/mtga-draft-assistant` (decision 16):
   has been found, the search looks every 3 s: one glob per place (seven on
   Linux, one on macOS), and it tells the window only when the answer changes,
   so waiting for Arena never redraws (decision 20). The smoke job runs in this
-  state and measures 0 ticks.
+  state and measures 0 ticks. Once the log is found, the follower stats it
+  every 200 ms and opens it only when it grew (decision 22); it posts to the
+  window only when something changes (caught up, a new session, a read
+  error), never per poll. The smoke job's second launch follows a fixture
+  and measures 0–1 ticks over 5 s, ~6 over 30 s (0.2% of a core, under Xvfb);
+  the cost is the poll itself and scales with its rate (1 tick over 30 s at
+  1 s, 24 at 50 ms).
+- **Following the log:** reads only the bytes appended since the last poll,
+  at most 1 MiB at a time, so catching up on a long session holds a megabyte,
+  not the log. A line longer than 16 MiB is dropped rather than buffered. The
+  file is opened only for each read and closed again.
 - **Startup:** window up within 250 ms of launch; first paint never waits on
   disk beyond what the first frame shows, or on the network. Measured with
   `-startup-time` (decision 19); `make smoke` and CI's macOS job print it.

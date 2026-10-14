@@ -50,22 +50,6 @@ by rating, with card images, before the pick timer matters. macOS and Linux
     people logs on rejoining, so the parser cannot yet tell such a draft's
     event or set (decision 23).
 
-- [ ] **Follow the log as it grows.**
-  - Reads only new bytes from the last offset on a short poll (decision 14);
-    buffers a trailing partial line until its newline arrives.
-  - Detects truncation (the file got smaller, or was replaced, because Arena
-    restarted) and starts again from the beginning, posting that a new Arena
-    session began.
-  - On first finding the log, reads the current session from the start, so a
-    draft already in progress is picked up, without blocking first paint.
-  - The core (given an offset, a size, and the bytes read, return complete lines
-    and the next offset) is a pure function; the polling loop is thin.
-  - When the log disappears, post `app.LogLost` and start the search again
-    (`background.FindLog`'s start), so the window lists where it is looking.
-  - Tests: empty file, partial line completed by a later read, truncation,
-    replacement, a multi-megabyte log read incrementally, a file that
-    disappears.
-
 - [ ] **Parse the remaining draft formats.** *Each blocked on its fixture.*
   Whichever of these the parsing task did not already cover, one PR per
   format as its fixture lands: the parser learns that format's lines, and the
@@ -76,7 +60,7 @@ by rating, with card images, before the pick timer matters. macOS and Linux
   - [x] Quick Draft (bot draft)
   - [ ] Traditional Draft
 
-- [ ] **Track the draft in the model.** *Needs the log follower (#9).*
+- [ ] **Track the draft in the model.**
   - `app.Model` gains the current draft: set, format, pack and pick number,
     the pack's card ids, the picks so far. Pure transitions from the parsed
     events, through `Apply`.
@@ -198,5 +182,8 @@ Each needs a decision from the maintainer before it becomes a task.
 - [x] Finding Arena's log: the usual places on macOS, Windows, and Linux prefixes
   (Wine, Lutris, Bottles, Steam), `-log`, a waiting state that says where it
   looked, and panics in background tasks shown in the window. (6, 20, 21)
+- [x] Following the log: only new bytes, partial lines held back, restart and
+  loss detected, a loading state while catching up, read errors with what to
+  do, and the smoke job measuring idle while following. (14, 22)
 - [x] Parsing draft events: Premier and Quick Draft from their fixtures, cut
   and repeated lines, and formats with no fixture skipped. (23)

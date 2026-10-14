@@ -191,6 +191,25 @@ first failure is kept: it is the likeliest to explain the rest, and the window
 stays on it until restart, because the stopped task will not update anything
 else it would have shown.
 
+### 22. Following the log: a pure cursor, a 200 ms stat, restart by identity
+
+`arena.Cursor.Consume` is the whole of the line logic, a pure function from
+bytes read to whole lines and the next offset; a line with no newline yet is
+held back, and `\r\n` is trimmed. The follower around it stats the log every
+200 ms (decision 14) and opens it only when it grew, reading at most 1 MiB at a
+time and closing it after, since a held handle on Windows would stop Arena
+moving its log aside. The log has started over when it is shorter than what was
+read, or is no longer the same file (`os.SameFile`: Arena moves `Player.log` to
+`Player-prev.log` on launch); it is then read from the start and the window is
+told a new session began. A truncation that has already regrown past the old
+offset in the same file between two polls cannot be seen this way; that is
+accepted, since Arena replaces the file. The log counts as lost only after 3 s
+missing, so the moment between Arena moving the old log and creating the new
+one does not flash the window back to "Waiting". Lost, the search starts again;
+a log named with `-log` is then waited for at that path alone, and the window
+says so instead of advising `-log`. A read failure is shown with its reason
+and what to do, once per distinct reason, and retried on every poll.
+
 ### 23. Draft parsing: line shapes from fixtures, one stateful pure parser
 
 `arena.Parser` reads one line at a time and returns draft events: started, pack

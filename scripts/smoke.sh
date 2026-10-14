@@ -3,7 +3,11 @@
 # first paint, and checks it then sits idle while nothing is happening
 # (decision 10).
 #
-#   scripts/smoke.sh <binary> <screenshot.png>
+#   scripts/smoke.sh <binary> <screenshot.png> [app flags...]
+#
+# Any flags after the screenshot go to the app: `make smoke` runs it once as a
+# plain launch (still looking for Arena's log) and once with -log naming a
+# fixture, so idle is also measured while the log is being followed.
 #
 # Needs an X display; on a headless machine run it as CI does,
 #   dbus-run-session -- xvfb-run -a make smoke
@@ -21,12 +25,13 @@
 # printed beside the idle numbers; it is reported, not gated.
 set -eu
 
-if [ "$#" -ne 2 ]; then
-	echo "usage: $0 <binary> <screenshot.png>" >&2
+if [ "$#" -lt 2 ]; then
+	echo "usage: $0 <binary> <screenshot.png> [app flags...]" >&2
 	exit 2
 fi
 bin=$1
 shot=$2
+shift 2
 window=${SMOKE_IDLE_SECONDS:-5}
 # How long the app may take to paint and then go quiet before that alone is a
 # failure.
@@ -39,7 +44,7 @@ max_ticks=${SMOKE_MAX_IDLE_TICKS:-10}
 # The app's stderr goes to a file so the startup line can be picked out of
 # it; it is shown in full if anything goes wrong.
 log=$(mktemp)
-"$bin" -startup-time 2>"$log" &
+"$bin" -startup-time "$@" 2>"$log" &
 pid=$!
 trap 'kill "$pid" 2>/dev/null || true; rm -f "$log"' EXIT
 show_log() { sed 's/^/  app: /' "$log" >&2; }
