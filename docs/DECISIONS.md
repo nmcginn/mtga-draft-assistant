@@ -209,3 +209,21 @@ one does not flash the window back to "Waiting". Lost, the search starts again;
 a log named with `-log` is then waited for at that path alone, and the window
 says so instead of advising `-log`. A read failure is shown with its reason
 and what to do, once per distinct reason, and retried on every poll.
+
+### 23. Draft parsing: line shapes from fixtures, one stateful pure parser
+
+`arena.Parser` reads one line at a time and returns draft events: started, pack
+shown, pick made, ended. Its only state is plain data (a response header
+awaiting its body on the next line, the draft under way, the last pack shown),
+so it does no I/O and is tested by feeding it fixture lines; a new log needs a
+new Parser. Each format's lines come from its fixture: Premier Draft's
+`Draft.Notify`, `EventPlayerDraftMakePick` and `DraftCompleteDraft`; Quick
+Draft's `BotDraftDraftStatus` and `BotDraftDraftPick`, which count packs and
+picks from 0 (events count from 1). The format and set come from the event
+name (`PremierDraft_FRA_20260929`). A draft joined in a format with no fixture
+is skipped until the next join, rather than read as a format it may not be. A
+pick is taken from its request, not its confirmation; a pack identical to the
+last one shown is reported once. A bot draft's status names its event, so it
+starts a draft the log never saw joined (Arena relaunched mid-draft); a draft
+against people has no such line in any fixture yet. Skipped draft lines go to
+`slog` at debug level, which the default logger drops.

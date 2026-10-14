@@ -16,7 +16,9 @@ internal/
                        the search that looks there until it turns up, and
                        the follower that reads it as it grows: a pure Cursor
                        that turns bytes into whole lines, around a thin
-                       poll (decision 22). Parsing drafts lands here next.
+                       poll (decision 22); and the Parser that turns those
+                       lines into draft events (pure; Premier and Quick
+                       Draft, decision 23).
   background/          Every goroutine the app starts, through one helper that
                        recovers a panic and posts it to the window (decision
                        4); and the tasks themselves, which call the I/O

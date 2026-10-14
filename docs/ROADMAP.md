@@ -45,22 +45,10 @@ by rating, with card images, before the pick timer matters. macOS and Linux
     `testdata/logs/2026-10-fra-quick-full-draft.log`.
   - [ ] Traditional Draft, the same way. Unblocks its format in "Parse the
     remaining draft formats".
-
-- [ ] **Parse draft events from the log.** *Blocked on the first draft
-  fixture.*
-  - Turns log lines into typed events: a draft started (set, format, event),
-    a pack shown (pack and pick number, card ids), a pick made (card id), the
-    draft ended (the pool).
-  - Covers every draft format that has a fixture in `testdata/logs/` when the
-    work starts; one is enough to begin. Arena may log each format
-    differently, so a format with no fixture is not guessed at: its lines are
-    skipped like any other unknown line, and the PR names the formats still
-    to come. Lines that are not draft events are skipped cheaply: most of the
-    log is not about drafting.
-  - Unknown or malformed draft lines are logged at debug level and skipped,
-    never fatal.
-  - Tests: every fixture, a line cut off mid-JSON, a pack seen twice (Arena
-    re-logs on reconnect), events out of the order expected.
+  - [ ] A Premier Draft resumed after relaunching Arena mid-draft, from the
+    relaunch through the next pick. No fixture shows what a draft against
+    people logs on rejoining, so the parser cannot yet tell such a draft's
+    event or set (decision 23).
 
 - [ ] **Parse the remaining draft formats.** *Each blocked on its fixture.*
   Whichever of these the parsing task did not already cover, one PR per
@@ -68,11 +56,11 @@ by rating, with card images, before the pick timer matters. macOS and Linux
   same tests run against its fixture, including a whole draft replayed through
   the model once the next task exists. Tick a format here when it is
   covered, by either task.
-  - [ ] Premier Draft
-  - [ ] Quick Draft (bot draft)
+  - [x] Premier Draft
+  - [x] Quick Draft (bot draft)
   - [ ] Traditional Draft
 
-- [ ] **Track the draft in the model.** *Blocked on parsing.*
+- [ ] **Track the draft in the model.**
   - `app.Model` gains the current draft: set, format, pack and pick number,
     the pack's card ids, the picks so far. Pure transitions from the parsed
     events, through `Apply`.
@@ -197,3 +185,5 @@ Each needs a decision from the maintainer before it becomes a task.
 - [x] Following the log: only new bytes, partial lines held back, restart and
   loss detected, a loading state while catching up, read errors with what to
   do, and the smoke job measuring idle while following. (14, 22)
+- [x] Parsing draft events: Premier and Quick Draft from their fixtures, cut
+  and repeated lines, and formats with no fixture skipped. (23)

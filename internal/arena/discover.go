@@ -1,5 +1,5 @@
-// Package arena knows where MTG Arena writes its log and, in later tasks, how
-// to follow it and read drafts from it. It only ever reads Arena's files.
+// Package arena knows where MTG Arena writes its log, and how to read drafts
+// from its lines. It only ever reads Arena's files.
 package arena
 
 import (
