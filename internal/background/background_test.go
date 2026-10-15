@@ -421,8 +421,12 @@ func TestAfterArenaRelaunchesTheNewLogIsReadAsANewSession(t *testing.T) {
 	if m.Draft != nil {
 		t.Errorf("a new session kept the old one's draft: %+v", m.Draft)
 	}
-	m = applyUntil[app.LogCaughtUp](t, m, next)
-	if d := m.Draft; d == nil || d.Event != "QuickDraft_FRA_20261008" || !d.Done || len(d.Picks) != 42 {
+	// The new log may be seen empty, and reported caught up, before its
+	// lines land in it; so wait for the draft, not for a message.
+	for m.Draft == nil || !m.Draft.Done {
+		m = m.Apply(next())
+	}
+	if d := m.Draft; d.Event != "QuickDraft_FRA_20261008" || len(d.Picks) != 42 {
 		t.Errorf("resumed draft: %+v, want QuickDraft_FRA_20261008 finished with 42 picks", d)
 	}
 }
