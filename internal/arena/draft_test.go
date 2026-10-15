@@ -190,7 +190,7 @@ func TestALineCutOffMidJSONIsSkippedAndTheDraftGoesOn(t *testing.T) {
 		lines := fixtureLines(t, quickFixture)
 		i := lineIndex(t, lines, requestPrefix+"BotDraftDraftPick", 0)
 		events, debug := parse(with(lines, i, cut(lines[i])))
-		if len(events) != 85 || !reflect.DeepEqual(events[2], PackShown{Pack: 1, Pick: 2, Cards: events[2].(PackShown).Cards}) {
+		if p2, ok := events[2].(PackShown); len(events) != 85 || !ok || p2.Pack != 1 || p2.Pick != 2 {
 			t.Errorf("got %d events, starting %v; want 85, with no p1p1 pick", len(events), events[:3])
 		}
 		if !strings.Contains(debug, "BotDraftDraftPick") {
@@ -296,6 +296,7 @@ func TestAMalformedDraftLineIsSkippedNotFatal(t *testing.T) {
 	botPick := quick[lineIndex(t, quick, requestPrefix+"BotDraftDraftPick", 0)]
 	completeAt := lineIndex(t, premier, replyPrefix+"DraftCompleteDraft", 0)
 	statusAt := lineIndex(t, quick, replyPrefix+"BotDraftDraftStatus", 0)
+	replyAt := lineIndex(t, quick, replyPrefix+"BotDraftDraftPick", 0)
 
 	for name, lines := range map[string][]string{
 		"a pack with no cards":         {strings.Replace(notify, `"PackCards"`, `"Other"`, 1)},
@@ -308,6 +309,7 @@ func TestAMalformedDraftLineIsSkippedNotFatal(t *testing.T) {
 		"a bot pick of a word":         {strings.Replace(botPick, `[\"106409\"]`, `[\"Plains\"]`, 1)},
 		"a pool that is missing":       {premier[completeAt], strings.Replace(premier[completeAt+1], `"CardPool"`, `"Other"`, 1)},
 		"a status nobody has seen":     {quick[statusAt], strings.Replace(quick[statusAt+1], `PickNext`, `Paused`, 1)},
+		"a pack picked from a word":    {quick[replyAt], strings.Replace(quick[replyAt+1], `\"PickedCards\":[\"106409\"`, `\"PickedCards\":[\"Plains\"`, 1)},
 		"a status with no payload":     {quick[statusAt], strings.Replace(quick[statusAt+1], `"Payload"`, `"Other"`, 1)},
 		"a status with an empty pack":  {quick[statusAt], quick[statusAt+1][:strings.Index(quick[statusAt+1], `[\"`)] + `[],\"PackStyles\":[],\"PickedCards\":[],\"PickedStyles\":[]}"}`},
 	} {
@@ -446,6 +448,31 @@ func BenchmarkParsingAWholeDraft(b *testing.B) {
 		var p Parser
 		for _, l := range lines {
 			p.Line(l)
+		}
+	}
+}
+
+func TestABotDraftsPackSaysWhatWasPickedBeforeIt(t *testing.T) {
+	quick, _ := parse(fixtureLines(t, quickFixture))
+	var shown int
+	for _, e := range quick {
+		pack, ok := e.(PackShown)
+		if !ok {
+			continue
+		}
+		if want := (pack.Pack-1)*14 + pack.Pick - 1; pack.Picked == nil || len(pack.Picked) != want {
+			t.Errorf("p%dp%d says %v were picked before it, want %d cards", pack.Pack, pack.Pick, pack.Picked, want)
+		}
+		shown++
+	}
+	if shown != 42 {
+		t.Errorf("saw %d packs, want 42", shown)
+	}
+
+	premier, _ := parse(fixtureLines(t, premierFixture))
+	for _, e := range premier {
+		if pack, ok := e.(PackShown); ok && pack.Picked != nil {
+			t.Errorf("p%dp%d of a Premier Draft says %v were picked, which its line does not say", pack.Pack, pack.Pick, pack.Picked)
 		}
 	}
 }

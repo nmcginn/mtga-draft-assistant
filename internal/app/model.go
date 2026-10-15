@@ -11,6 +11,8 @@ import (
 	"io/fs"
 	"slices"
 
+	"github.com/nmcginn/mtga-draft-assistant/internal/arena"
+	"github.com/nmcginn/mtga-draft-assistant/internal/draft"
 	"github.com/nmcginn/mtga-draft-assistant/internal/version"
 )
 
@@ -50,6 +52,10 @@ type Model struct {
 	// Unreadable is why the log could not be read, while it cannot; empty
 	// otherwise.
 	Unreadable string
+	// Draft is the draft read from the log, or nil when the log has shown
+	// none. A finished draft stays until the next one starts, so the window
+	// can show what was drafted.
+	Draft *draft.Draft
 	// Failure is the first background task that stopped unexpectedly, or
 	// nil. It is kept until restart: the task is not running any more, so
 	// whatever it would have shown never will.
@@ -104,6 +110,12 @@ type LogSearched struct {
 	Given  string
 }
 
+// DraftEvents reports what the log said about drafting, in the order it was
+// written. The log's lines are read in batches, and one message carries a
+// batch's events, so catching up on a long session costs a frame per
+// batch, not one per pick.
+type DraftEvents struct{ Events []arena.Event }
+
 // TaskFailed reports that a background task stopped, typically because it
 // panicked: the goroutine recovered and sent this instead of taking the
 // whole window down with it (decision 4).
@@ -118,6 +130,7 @@ func (LogSearched) isMsg()    {}
 func (LogCaughtUp) isMsg()    {}
 func (SessionStarted) isMsg() {}
 func (LogUnreadable) isMsg()  {}
+func (DraftEvents) isMsg()    {}
 func (TaskFailed) isMsg()     {}
 
 // Apply returns the state after msg. It never fails: a message that does not
@@ -132,11 +145,15 @@ func (m Model) Apply(msg Msg) Model {
 		m.LogPath = msg.Path
 		m.Searched, m.Looked, m.Given = false, nil, ""
 		m.CaughtUp, m.Unreadable = false, ""
+		// The log is read from its start, and says again what draft is
+		// under way.
+		m.Draft = nil
 	case LogLost:
 		m.Phase = PhaseFindingLog
 		m.LogPath = ""
 		m.Searched, m.Looked, m.Given = false, nil, ""
 		m.CaughtUp, m.Unreadable = false, ""
+		m.Draft = nil
 	case LogCaughtUp:
 		// The follower's messages describe the log it was following; one
 		// still queued when that log was lost has nothing to say.
@@ -149,6 +166,18 @@ func (m Model) Apply(msg Msg) Model {
 			return m
 		}
 		m.CaughtUp = false
+		// A draft Arena reopens after relaunching says so in the new
+		// session's log; one that it does not was left behind.
+		m.Draft = nil
+	case DraftEvents:
+		// Events still queued from a log that was since lost describe
+		// nothing on screen.
+		if m.Phase != PhaseFollowing {
+			return m
+		}
+		for _, e := range msg.Events {
+			m.Draft = draft.Apply(m.Draft, e)
+		}
 	case LogUnreadable:
 		if m.Phase != PhaseFollowing {
 			return m

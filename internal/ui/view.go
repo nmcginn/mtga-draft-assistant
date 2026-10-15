@@ -27,7 +27,63 @@ func newState(model app.Model) *state {
 // beyond the views themselves, and no I/O, ever.
 func mainView(w *gui.Window) gui.View {
 	s := gui.State[state](w)
+	if s.model.ShowsDraft() {
+		return draftView(s.model.DraftScreen(), s.theme)
+	}
 	return statusView(s.model.Status(), s.theme)
+}
+
+// draftView is the draft: its name and position, the pack one card a line,
+// and the picks so far under it. It scrolls, since a full pack and three
+// packs of picks are taller than the window.
+func draftView(d app.DraftScreen, t Theme) gui.View {
+	text := func(id, s string, style gui.TextStyle) gui.View {
+		return gui.Text(gui.TextCfg{ID: id, Text: s, TextStyle: style, Mode: gui.TextModeWrap})
+	}
+	content := []gui.View{text("draft-title", d.Title, t.title())}
+	if d.Position != "" {
+		content = append(content, text("draft-position", d.Position, t.label()))
+	}
+
+	pack := make([]gui.View, 0, len(d.Cards)+1)
+	pack = append(pack, text("draft-heading", d.Heading, t.label()))
+	for i, c := range d.Cards {
+		pack = append(pack, text(fmt.Sprintf("draft-card-%d", i), c, t.body()))
+	}
+	content = append(content, section("draft-pack", pack))
+
+	if d.PicksHeading != "" {
+		picks := make([]gui.View, 0, len(d.Picks)+1)
+		picks = append(picks, text("draft-picks-heading", d.PicksHeading, t.label()))
+		for i, p := range d.Picks {
+			picks = append(picks, text(fmt.Sprintf("draft-picks-%d", i), p, t.note()))
+		}
+		content = append(content, section("draft-picks", picks))
+	}
+	if d.Footnote != "" {
+		content = append(content, text("draft-footnote", d.Footnote, t.note()))
+	}
+	return gui.Column(gui.ContainerCfg{
+		ID:            "draft",
+		Sizing:        gui.FillFill,
+		Color:         t.Background,
+		Scrollable:    true,
+		ScrollbarCfgY: &gui.ScrollbarCfg{ColorThumb: t.Subtle, ColorBackground: t.Background},
+		Spacing:       gui.SpacingMedium,
+		Padding:       gui.NewPadding(16, 20, 16, 20),
+		Content:       content,
+	})
+}
+
+// section is a group of lines in the draft view, set apart from the next.
+func section(id string, content []gui.View) gui.View {
+	return gui.Column(gui.ContainerCfg{
+		ID:      id,
+		Sizing:  gui.FillFit,
+		Spacing: gui.SpacingSmall,
+		Padding: gui.NewPadding(8, 0, 0, 0),
+		Content: content,
+	})
 }
 
 // statusView is the centred headline-and-next-step shown whenever there is no

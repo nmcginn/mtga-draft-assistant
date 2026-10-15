@@ -60,16 +60,6 @@ by rating, with card images, before the pick timer matters. macOS and Linux
   - [x] Quick Draft (bot draft)
   - [ ] Traditional Draft
 
-- [ ] **Track the draft in the model.**
-  - `app.Model` gains the current draft: set, format, pack and pick number,
-    the pack's card ids, the picks so far. Pure transitions from the parsed
-    events, through `Apply`.
-  - The window shows the pack as card ids, with pack and pick number, and the
-    picks so far. Names arrive with the next task; this is the honest
-    intermediate view, not a placeholder.
-  - Tests: a whole draft replayed from fixtures ends with the right pool; a
-    reconnect mid-draft does not duplicate picks.
-
 - [ ] **Card names and details from Scryfall, cached offline.**
   - The app's HTTP client (decision 9): User-Agent, per-host rate limiter,
     context, conditional requests. Goes in `fetch/`; every later source uses it.
@@ -187,3 +177,6 @@ Each needs a decision from the maintainer before it becomes a task.
   do, and the smoke job measuring idle while following. (14, 22)
 - [x] Parsing draft events: Premier and Quick Draft from their fixtures, cut
   and repeated lines, and formats with no fixture skipped. (23)
+- [x] Tracking the draft: the log's draft events reach the model, and the
+  window shows the pack by card id with pack and pick, the picks so far, and
+  the pool when it ends; repeated picks and a resumed bot draft read once. (24)
