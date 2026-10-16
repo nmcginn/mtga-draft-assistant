@@ -319,3 +319,126 @@ func TestOnceTheWindowClosesTheLogTaskReportsNothingMore(t *testing.T) {
 	case <-time.After(200 * time.Millisecond):
 	}
 }
+
+const (
+	premierFixture = "../../testdata/logs/2026-10-fra-premier-full-draft.log"
+	quickFixture   = "../../testdata/logs/2026-10-fra-quick-full-draft.log"
+)
+
+func readFixture(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
+// applyUntil applies messages to m until one is an U, and returns the model
+// then.
+func applyUntil[U app.Msg](t *testing.T, m app.Model, next func() app.Msg) app.Model {
+	t.Helper()
+	for {
+		msg := next()
+		m = m.Apply(msg)
+		if _, ok := msg.(U); ok {
+			return m
+		}
+	}
+}
+
+func TestTheDraftInTheLogReachesTheWindow(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "Player.log")
+	writeFile(t, path, readFixture(t, premierFixture))
+	model, start, err := FindLog(setup(t.TempDir(), path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	post, next := collect(t)
+	start(t.Context(), post)
+	m := applyUntil[app.LogCaughtUp](t, model, next)
+	if d := m.Draft; d == nil || d.Set != "FRA" || !d.Done || len(d.Picks) != 42 {
+		t.Errorf("draft once caught up: %+v, want the whole FRA draft", d)
+	}
+}
+
+func TestAPackArenaWritesWhileFollowingIsShown(t *testing.T) {
+	lines := strings.SplitAfter(readFixture(t, premierFixture), "\n")
+	cut := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, `"SelfPick":4,"SelfPack":1`) })
+	path := filepath.Join(t.TempDir(), "Player.log")
+	writeFile(t, path, strings.Join(lines[:cut], ""))
+	model, start, err := FindLog(setup(t.TempDir(), path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	post, next := collect(t)
+	start(t.Context(), post)
+	m := applyUntil[app.LogCaughtUp](t, model, next)
+	if d := m.Draft; d == nil || d.Pick != 3 {
+		t.Fatalf("before the append: %+v, want p1p3 on show", d)
+	}
+
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString(lines[cut]); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	m = applyUntil[app.DraftEvents](t, m, next)
+	if d := m.Draft; d.Pack != 1 || d.Pick != 4 || len(d.Cards) != 11 {
+		t.Errorf("after the append: p%dp%d with %d cards, want p1p4 with 11", d.Pack, d.Pick, len(d.Cards))
+	}
+}
+
+func TestAfterArenaRelaunchesTheNewLogIsReadAsANewSession(t *testing.T) {
+	// The parser starts afresh with the new log: a bot draft that the old
+	// one was in the middle of is news again when the new log resumes it,
+	// and is named, not shown as a draft of unknown set.
+	quick := strings.SplitAfter(readFixture(t, quickFixture), "\n")
+	reply := slices.IndexFunc(quick, func(l string) bool { return strings.HasPrefix(l, "<== BotDraftDraftPick") })
+	path := filepath.Join(t.TempDir(), "Player.log")
+	writeFile(t, path, strings.Join(quick[:reply+10], ""))
+	model, start, err := FindLog(setup(t.TempDir(), path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	post, next := collect(t)
+	start(t.Context(), post)
+	m := applyUntil[app.LogCaughtUp](t, model, next)
+	if m.Draft == nil || m.Draft.Done {
+		t.Fatalf("first session: %+v, want a draft under way", m.Draft)
+	}
+
+	if err := os.Rename(path, filepath.Join(filepath.Dir(path), "Player-prev.log")); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, path, strings.Join(quick[reply:], ""))
+	m = applyUntil[app.SessionStarted](t, m, next)
+	if m.Draft != nil {
+		t.Errorf("a new session kept the old one's draft: %+v", m.Draft)
+	}
+	// The new log may be seen empty, and reported caught up, before its
+	// lines land in it; so wait for the draft, not for a message.
+	for m.Draft == nil || !m.Draft.Done {
+		m = m.Apply(next())
+	}
+	if d := m.Draft; d.Event != "QuickDraft_FRA_20261008" || len(d.Picks) != 42 {
+		t.Errorf("resumed draft: %+v, want QuickDraft_FRA_20261008 finished with 42 picks", d)
+	}
+}
+
+func TestALogWithNoDraftSendsNoDraftEvents(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "Player.log")
+	writeFile(t, path, "[UnityCrossThreadLogger]10/10/2026 12:44:31 PM\nAK Message: Audio thread resumed, audio restarts.\n\n")
+	_, start, err := FindLog(setup(t.TempDir(), path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	post, next := collect(t)
+	start(t.Context(), post)
+	expect[app.LogCaughtUp](t, next)
+}

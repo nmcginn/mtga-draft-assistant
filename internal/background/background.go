@@ -58,8 +58,9 @@ type LogSetup struct {
 	// missing; its zero value is the defaults. Its callbacks are set by
 	// FindLog, not here.
 	Follow arena.Follower
-	// Lines receives the log's lines, in order, on the background goroutine.
-	// Nil discards them.
+	// Lines receives the log's lines, in order, on the background goroutine,
+	// after the draft parser has read them. Nil is the usual: tests set it to
+	// see what was read.
 	Lines func([]string)
 }
 
@@ -95,26 +96,48 @@ func FindLog(s LogSetup) (app.Model, Start, error) {
 	}
 	start := func(ctx context.Context, post Post) {
 		Go(logTask, post, func() {
-			watchLog(ctx, path, path, cands, every, follower(s, post), post)
+			f, reset := follower(s, post)
+			watchLog(ctx, path, path, cands, every, f, reset, post)
 		})
 	}
 	return model, start, nil
 }
 
-// follower is s.Follow with its callbacks turned into app messages.
-func follower(s LogSetup, post Post) arena.Follower {
-	f := s.Follow
-	f.Lines = s.Lines
-	f.Restarted = func() { post(app.SessionStarted{}) }
+// follower is s.Follow with its callbacks turned into app messages: the
+// lines it reads go through a draft parser, and each batch's draft events
+// become one app.DraftEvents. reset starts the parser afresh, for a log read
+// from its start. The follower calls back on the goroutine that runs it, so
+// the parser is only ever used from there.
+func follower(s LogSetup, post Post) (f arena.Follower, reset func()) {
+	var parser arena.Parser
+	reset = func() { parser = arena.Parser{} }
+	f = s.Follow
+	f.Lines = func(lines []string) {
+		var events []arena.Event
+		for _, l := range lines {
+			events = append(events, parser.Line(l)...)
+		}
+		if len(events) > 0 {
+			post(app.DraftEvents{Events: events})
+		}
+		if s.Lines != nil {
+			s.Lines(lines)
+		}
+	}
+	f.Restarted = func() {
+		reset()
+		post(app.SessionStarted{})
+	}
 	f.CaughtUp = func() { post(app.LogCaughtUp{}) }
 	f.Failed = func(err error) { post(app.LogUnreadable{Err: err}) }
-	return f
+	return f, reset
 }
 
 // watchLog follows path, or first searches cands for it when path is "",
 // and goes back to searching each time the log is lost, until ctx ends.
 // given is the path named with -log, if any, for the window to name.
-func watchLog(ctx context.Context, path, given string, cands []arena.Candidate, every time.Duration, f arena.Follower, post Post) {
+// reset is called before each log is followed, which is read from its start.
+func watchLog(ctx context.Context, path, given string, cands []arena.Candidate, every time.Duration, f arena.Follower, reset func(), post Post) {
 	for {
 		if path == "" {
 			arena.Watch(ctx, cands, every, func(r arena.Search) {
@@ -133,6 +156,7 @@ func watchLog(ctx context.Context, path, given string, cands []arena.Candidate, 
 				return // ctx ended before the log turned up
 			}
 		}
+		reset()
 		if err := f.Run(ctx, path); !errors.Is(err, arena.ErrLogGone) {
 			return
 		}

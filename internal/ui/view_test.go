@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"errors"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/go-gui-org/go-gui/gui"
 
 	"github.com/nmcginn/mtga-draft-assistant/internal/app"
+	"github.com/nmcginn/mtga-draft-assistant/internal/arena"
 	"github.com/nmcginn/mtga-draft-assistant/internal/background"
 )
 
@@ -266,5 +268,171 @@ func TestWhileCatchingUpOnTheLogTheWindowSaysSoThenThatItIsReady(t *testing.T) {
 	w.FrameFn()
 	if got := texts(w.TestRender(nil)); !slices.Contains(got, "Ready for your next draft") {
 		t.Errorf("after catching up the window shows %q", got)
+	}
+}
+
+// drafting is a model following a log, with the draft events given.
+func drafting(events ...arena.Event) app.Model {
+	return app.New().Apply(app.LogFound{Path: "/logs/Player.log"}).Apply(app.LogCaughtUp{}).
+		Apply(app.DraftEvents{Events: events})
+}
+
+var (
+	premierStart = arena.DraftStarted{Event: "PremierDraft_FRA_20260929", Set: "FRA", Format: arena.PremierDraft}
+	firstPack    = arena.PackShown{Pack: 1, Pick: 1, Cards: []int{106325, 106235, 106268, 106407, 106411, 106335, 106385, 106391, 106444, 106321, 106501, 106485, 106453, 106439}}
+)
+
+// fullDraft is a model that has read the whole Premier Draft fixture.
+func fullDraft(t *testing.T) app.Model {
+	t.Helper()
+	b, err := os.ReadFile("../../testdata/logs/2026-10-fra-premier-full-draft.log")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var p arena.Parser
+	var events []arena.Event
+	for l := range strings.SplitSeq(string(b), "\n") {
+		events = append(events, p.Line(l)...)
+	}
+	return drafting(events...)
+}
+
+func TestThePackIsShownCardByCardWithWhereInTheDraftItIs(t *testing.T) {
+	model := drafting(premierStart, firstPack)
+	_, got := render(t, model, defaultWidth, defaultHeight)
+	s := model.DraftScreen()
+	for _, want := range append([]string{"FRA · Premier Draft", "Pack 1 · Pick 1", "14 cards in this pack", s.Footnote}, s.Cards...) {
+		if !slices.Contains(got, want) {
+			t.Errorf("window shows %q, want %q", got, want)
+		}
+	}
+	if i, j := slices.Index(got, "106325"), slices.Index(got, "106439"); i < 0 || j < i {
+		t.Errorf("window shows %q, want the pack in Arena's order", got)
+	}
+	if slices.Contains(got, model.Status().Headline) {
+		t.Errorf("window shows %q, the status as well as the draft", got)
+	}
+}
+
+func TestAfterAPickTheWindowSaysItIsWaitingAndListsThePick(t *testing.T) {
+	_, got := render(t, drafting(premierStart, firstPack, arena.PickMade{Pack: 1, Pick: 1, Card: 106453}), defaultWidth, defaultHeight)
+	for _, want := range []string{"You took 106453. Waiting for the next pack.", "Your picks (1)", "Pack 1: 106453"} {
+		if !slices.Contains(got, want) {
+			t.Errorf("window shows %q, want %q", got, want)
+		}
+	}
+	if slices.Contains(got, "106325") {
+		t.Errorf("window shows %q, still listing the pack picked from", got)
+	}
+}
+
+func TestAFinishedDraftShowsThePoolByPack(t *testing.T) {
+	model := fullDraft(t)
+	_, got := render(t, model, defaultWidth, defaultHeight)
+	s := model.DraftScreen()
+	for _, want := range append([]string{"Draft complete", "Your pool (42 cards)", s.Heading}, s.Picks...) {
+		if !slices.Contains(got, want) {
+			t.Errorf("window shows %q, want %q", got, want)
+		}
+	}
+}
+
+func TestAPackArrivingIsOnScreenTheFrameAfterItIsPosted(t *testing.T) {
+	w, _ := render(t, drafting(premierStart), defaultWidth, defaultHeight)
+	w.FrameFn()
+	Post(w, app.DraftEvents{Events: []arena.Event{firstPack}})
+	if !w.FrameFn() {
+		t.Error("the frame after a pack arrived did not rebuild the view")
+	}
+	if got := texts(w.TestRender(nil)); !slices.Contains(got, "106325") {
+		t.Errorf("after the pack arrived the window shows %q", got)
+	}
+}
+
+func TestTheDraftFitsTinyAndNarrowWindowsWithoutLosingCards(t *testing.T) {
+	// A whole pack and three packs of picks are taller than the window; the
+	// view scrolls rather than dropping them.
+	model := drafting(premierStart, firstPack)
+	for _, size := range [][2]int{{1, 1}, {minWidth, minHeight}} {
+		_, got := render(t, model, size[0], size[1])
+		for _, want := range []string{"FRA · Premier Draft", "106325", "106439"} {
+			if !slices.Contains(got, want) {
+				t.Errorf("at %dx%d the window shows %q, missing %q", size[0], size[1], got, want)
+			}
+		}
+	}
+	_, got := render(t, fullDraft(t), minWidth, minHeight)
+	if !slices.ContainsFunc(got, func(s string) bool { return strings.HasPrefix(s, "Pack 3: ") }) {
+		t.Errorf("at %dx%d a finished draft shows %q, missing its last pack", minWidth, minHeight, got)
+	}
+}
+
+// find is the shape with id in the layout tree, or nil.
+func find(ly *gui.Layout, id string) *gui.Shape {
+	if ly.Shape != nil && ly.Shape.ID == id {
+		return ly.Shape
+	}
+	for i := range ly.Children {
+		if s := find(&ly.Children[i], id); s != nil {
+			return s
+		}
+	}
+	return nil
+}
+
+func TestTheDraftViewTakesItsColoursFromTheTheme(t *testing.T) {
+	custom := Dark
+	custom.Background = gui.Hex(0x123456)
+	custom.Text = gui.Hex(0x654321)
+	custom.TextMuted = gui.Hex(0x112233)
+	w := gui.NewTestWindow(t, gui.WindowCfg{State: &state{model: drafting(premierStart, firstPack), theme: custom}})
+	ly := w.TestRender(mainView)
+	if s := find(ly, "draft"); s == nil || s.Color != custom.Background {
+		t.Error("the draft view did not paint the theme's background")
+	}
+	for id, want := range map[string]gui.Color{"draft-title": custom.Text, "draft-card-0": custom.Text, "draft-heading": custom.TextMuted, "draft-footnote": custom.TextMuted} {
+		if s := find(ly, id); s == nil || s.TC == nil || s.TC.TextStyle.Color != want {
+			t.Errorf("%s is not in the theme's colour", id)
+		}
+	}
+}
+
+func TestAFailureWhileDraftingReplacesTheDraft(t *testing.T) {
+	w, _ := render(t, drafting(premierStart, firstPack), defaultWidth, defaultHeight)
+	Post(w, app.TaskFailed{Task: "Watching Arena's log", Err: errors.New("boom")})
+	w.FrameFn()
+	got := texts(w.TestRender(nil))
+	if !slices.Contains(got, "Something went wrong") || slices.Contains(got, "106325") {
+		t.Errorf("window shows %q, want the failure and not the stale pack", got)
+	}
+}
+
+func TestTheRealLogTaskPutsAFixturesDraftOnScreen(t *testing.T) {
+	// End to end, without a display: -log naming the fixture, as the smoke
+	// job's second launch does.
+	model, start, err := background.FindLog(background.LogSetup{
+		Flag: "../../testdata/logs/2026-10-fra-quick-full-draft.log", GOOS: "linux", Home: t.TempDir(),
+		Getenv: func(string) string { return "" },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := windowCfg(t.Context(), model, Options{Start: start})
+	got := framesUntil(t, gui.NewTestWindow(t, cfg), "Draft complete")
+	if !slices.Contains(got, "FRA · Quick Draft") || !slices.Contains(got, "Your pool (42 cards)") {
+		t.Errorf("window shows %q, want the quick draft's pool", got)
+	}
+}
+
+func TestADraftTallerThanTheWindowScrolls(t *testing.T) {
+	model := drafting(premierStart, firstPack, arena.PickMade{Pack: 1, Pick: 1, Card: 106453},
+		arena.PackShown{Pack: 1, Pick: 2, Cards: firstPack.Cards[1:]})
+	w, _ := render(t, model, minWidth, minHeight)
+	if err := w.TestScroll("draft", 0, -200); err != nil {
+		t.Fatal(err)
+	}
+	w.FrameFn()
+	if _, y, err := w.TestScrollOffset("draft"); err != nil || y == 0 {
+		t.Errorf("after scrolling, offset %v (%v); want the view moved", y, err)
 	}
 }

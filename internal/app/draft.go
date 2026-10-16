@@ -1,0 +1,170 @@
+package app
+
+import (
+	"fmt"
+	"slices"
+	"strconv"
+	"strings"
+
+	"github.com/nmcginn/mtga-draft-assistant/internal/arena"
+	"github.com/nmcginn/mtga-draft-assistant/internal/draft"
+)
+
+// DraftScreen is what the window shows while there is a draft: which draft,
+// where in it the player is, the pack, and the picks so far, already put into
+// words. Like Status, it lives here so that what the user reads is decided
+// and tested in one place, and the view only lays it out.
+type DraftScreen struct {
+	// Title names the draft: "FRA · Premier Draft".
+	Title string
+	// Position is where in the draft the player is: "Pack 1 · Pick 3", or
+	// "Draft complete". Empty before the first pack.
+	Position string
+	// Heading is the line over the pack: how many cards it holds, or what
+	// the player is waiting for.
+	Heading string
+	// Cards is the pack, one card a line, in Arena's order.
+	Cards []string
+	// PicksHeading is the line over the picks, with their count; empty
+	// before the first pick.
+	PicksHeading string
+	// Picks is the picks so far, one line for each pack they came from.
+	Picks []string
+	// Footnote is a smaller note under it all.
+	Footnote string
+}
+
+// ShowsDraft reports whether the window shows the draft (DraftScreen) rather
+// than Status. A failure, or a log that cannot be read, needs the user to do
+// something, so it is shown instead: a draft that has stopped updating would
+// otherwise look like one that is up to date.
+func (m Model) ShowsDraft() bool {
+	return m.Phase == PhaseFollowing && m.Draft != nil && m.Failure == nil && m.Unreadable == ""
+}
+
+// formatNames are the draft formats as Arena's own menus name them.
+var formatNames = map[arena.Format]string{
+	arena.PremierDraft: "Premier Draft",
+	arena.QuickDraft:   "Quick Draft",
+}
+
+// DraftScreen describes the draft for the user. It is only meaningful while
+// ShowsDraft.
+func (m Model) DraftScreen() DraftScreen {
+	d := m.Draft
+	if d == nil {
+		return DraftScreen{}
+	}
+	s := DraftScreen{Title: draftTitle(*d)}
+	if !m.CaughtUp {
+		// The pack on screen may be one from earlier in the session that
+		// the log has not got past yet.
+		s.Footnote = "Catching up on Arena's log; the pack shown may not be the latest yet."
+	} else {
+		s.Footnote = "Cards are listed by their Arena id: card names are not available yet."
+	}
+
+	if d.Done {
+		s.Position = "Draft complete"
+		s.Heading = "Start another draft in Arena and its first pack appears here."
+		s.PicksHeading = fmt.Sprintf("Your pool (%s)", cards(len(d.Pool)))
+		s.Picks = poolLines(*d)
+		return s
+	}
+
+	if d.Pack > 0 {
+		s.Position = fmt.Sprintf("Pack %d · Pick %d", d.Pack, d.Pick)
+	}
+	switch card, picked := d.Picked(); {
+	case d.Cards == nil:
+		s.Heading = "Waiting for the first pack."
+	case picked:
+		s.Heading = fmt.Sprintf("You took %d. Waiting for the next pack.", card)
+	default:
+		s.Heading = fmt.Sprintf("%s in this pack", cards(len(d.Cards)))
+		s.Cards = make([]string, len(d.Cards))
+		for i, c := range d.Cards {
+			s.Cards[i] = strconv.Itoa(c)
+		}
+	}
+	if len(d.Picks) > 0 {
+		s.PicksHeading = fmt.Sprintf("Your picks (%d)", len(d.Picks))
+		s.Picks = pickLines(d.Picks)
+	}
+	return s
+}
+
+// draftTitle names the draft by its set and format, or says that it is a
+// draft at all when the log never said which.
+func draftTitle(d draft.Draft) string {
+	if d.Set == "" {
+		if d.Done {
+			return "Draft"
+		}
+		return "Draft in progress"
+	}
+	name, ok := formatNames[d.Format]
+	if !ok {
+		name = string(d.Format)
+	}
+	return d.Set + " · " + name
+}
+
+func cards(n int) string {
+	if n == 1 {
+		return "1 card"
+	}
+	return fmt.Sprintf("%d cards", n)
+}
+
+// pickLines groups picks, in the order taken, into one line per pack:
+// "Pack 1: 106453, 106225". Picks whose pack the log did not say are
+// "Earlier".
+func pickLines(picks []draft.Pick) []string {
+	var lines []string
+	var line strings.Builder
+	for i, p := range picks {
+		if i == 0 || p.Pack != picks[i-1].Pack {
+			if i > 0 {
+				lines = append(lines, line.String())
+				line.Reset()
+			}
+			if p.Pack == 0 {
+				line.WriteString("Earlier: ")
+			} else {
+				fmt.Fprintf(&line, "Pack %d: ", p.Pack)
+			}
+		} else {
+			line.WriteString(", ")
+		}
+		line.WriteString(strconv.Itoa(p.Card))
+	}
+	if len(picks) > 0 {
+		lines = append(lines, line.String())
+	}
+	return lines
+}
+
+// poolLines is a finished draft's pool. When the picks read are exactly the
+// pool, they are shown by pack, in the order taken; otherwise some picks were
+// missed (the log began mid-draft), and the pool is shown as Arena gave it.
+func poolLines(d draft.Draft) []string {
+	if len(d.Pool) == 0 {
+		return nil
+	}
+	picked := make([]int, len(d.Picks))
+	for i, p := range d.Picks {
+		picked[i] = p.Card
+	}
+	pool := slices.Clone(d.Pool)
+	slices.Sort(picked)
+	slices.Sort(pool)
+	if slices.Equal(picked, pool) {
+		return pickLines(d.Picks)
+	}
+	ids := make([]string, len(d.Pool))
+	for i, c := range d.Pool {
+		ids[i] = strconv.Itoa(c)
+	}
+	return []string{strings.Join(ids, ", ")}
+}

@@ -46,6 +46,12 @@ type DraftStarted struct {
 type PackShown struct {
 	Pack, Pick int
 	Cards      []int // Arena ids, in Arena's order
+	// Picked is every card taken in this draft before this pack, when
+	// Arena logs it with the pack: bot drafts do, so a draft resumed after
+	// relaunching Arena still knows its earlier picks. It is not in the
+	// order taken (the fixture's is sorted by id). Nil when the pack came
+	// without it (Premier Draft).
+	Picked []int
 }
 
 // PickMade reports the card the player took. Pack and Pick count from 1.
@@ -322,6 +328,10 @@ func (p *Parser) botDraft(what, body string) []Event {
 		if err != nil {
 			return p.skip(what, err)
 		}
+		picked, err := cardList(d.PickedCards)
+		if err != nil {
+			return p.skip(what, err)
+		}
 		if len(cards) == 0 || d.PackNumber < 0 || d.PickNumber < 0 {
 			return p.skip(what, fmt.Errorf("a pick with no pack: %s", *r.Payload))
 		}
@@ -329,7 +339,7 @@ func (p *Parser) botDraft(what, body string) []Event {
 		// was joined before this log began, so it can be the first news of
 		// the draft.
 		events := p.started(d.EventName, f, set)
-		return append(events, p.shownPack(PackShown{Pack: d.PackNumber + 1, Pick: d.PickNumber + 1, Cards: cards})...)
+		return append(events, p.shownPack(PackShown{Pack: d.PackNumber + 1, Pick: d.PickNumber + 1, Cards: cards, Picked: picked})...)
 	case "Completed":
 		pool, err := cardList(d.PickedCards)
 		if err != nil {

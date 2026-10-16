@@ -19,10 +19,17 @@ internal/
                        poll (decision 22); and the Parser that turns those
                        lines into draft events (pure; Premier and Quick
                        Draft, decision 23).
+  draft/               The draft under way as plain data: which draft, the
+                       pack on show, the picks, the pool; and Apply, which
+                       folds the parser's events into it (pure, decision 24).
+                       The ranking of a pack against ratings joins it with
+                       the ratings task.
   background/          Every goroutine the app starts, through one helper that
                        recovers a panic and posts it to the window (decision
                        4); and the tasks themselves, which call the I/O
-                       packages and turn what they report into app messages.
+                       packages and turn what they report into app messages:
+                       the log task runs the parser and posts each batch's
+                       draft events as one message.
   startup/             Time to first frame: when each stage of startup
                        finished, and the one-line report -startup-time prints
                        (decision 19).
@@ -34,8 +41,6 @@ Planned packages, added by the roadmap task that first needs each one (and
 added to this map by the same PR):
 
 ```
-  draft/               Picks, packs, pools: the pure draft model and the
-                       ranking of a pack against ratings.
   store/               The SQLite cache: schema, migrations, reads and writes
                        of sets, cards, and ratings.
   fetch/               The app's HTTP client (User-Agent, per-host rate limit,
@@ -54,7 +59,8 @@ Three layers, and the boundaries are load-bearing:
 
 **Computation** — parsing log lines, joining cards to ratings, ranking a pack,
 every state transition. Pure functions over plain data: `app.Model.Apply`,
-`app.Model.Status`. All of it is tested directly.
+`app.Model.Status`, `app.Model.DraftScreen`, `draft.Apply`. All of it is
+tested directly.
 
 **I/O** — the log file, the cache database, the network. Confined to narrow
 functions that do nothing but read or fetch and hand back data. They run on
@@ -99,7 +105,8 @@ UI thread reads or writes it (decision 6).
 - **The real window:** `make smoke` under `xvfb-run` launches the release
   binary twice, plainly and with `-log` naming a fixture, screenshots each
   once it settles, and checks idle CPU in both. CI uploads the screenshots
-  (`first-paint.png`, `following.png`) as the `first-paint` artifact.
+  (`first-paint.png`, and `following.png`, which shows the fixture's finished
+  draft) as the `first-paint` artifact.
 
 ## Budgets
 
@@ -141,7 +148,9 @@ Everything lives under `os.UserCacheDir()/mtga-draft-assistant` (decision 16):
   state and measures 0 ticks. Once the log is found, the follower stats it
   every 200 ms and opens it only when it grew (decision 22); it posts to the
   window only when something changes (caught up, a new session, a read
-  error), never per poll. The smoke job's second launch follows a fixture
+  error, draft events in what was read), never per poll. Draft events go
+  as one message per batch read, so catching up on a session redraws once
+  per megabyte, not once per pick (decision 24). The smoke job's second launch follows a fixture
   and measures 0–1 ticks over 5 s, ~6 over 30 s (0.2% of a core, under Xvfb);
   the cost is the poll itself and scales with its rate (1 tick over 30 s at
   1 s, 24 at 50 ms).

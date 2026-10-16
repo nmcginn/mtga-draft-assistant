@@ -227,3 +227,21 @@ last one shown is reported once. A bot draft's status names its event, so it
 starts a draft the log never saw joined (Arena relaunched mid-draft); a draft
 against people has no such line in any fixture yet. Skipped draft lines go to
 `slog` at debug level, which the default logger drops.
+
+### 24. The draft in the model: one message per batch, Arena's pick list as a set
+
+`draft.Apply` folds parsed events into a `draft.Draft` (which draft, the pack on
+show, the picks, the pool); `app.Model` holds it and `Model.DraftScreen` puts it
+into words, as `Status` does for the empty states. The log task runs the parser
+on its own goroutine and posts one `app.DraftEvents` per batch of lines read, so
+catching up on a long session is a frame per megabyte, not one per pick. The
+parser and the draft start afresh with each log and each Arena session; a draft
+Arena reopens is read again from the new log. A pick at a position already held
+replaces it, and a pack from earlier than the one on show is ignored, so
+reconnects do not duplicate. A bot draft's packs carry Arena's `PickedCards`,
+which the fixture shows sorted by id, not in pick order: cards in it that were
+not seen picked are added first, as earlier picks with no position, rather than
+placed where they might have been. A pack or pick with no draft started begins
+one with no name (Premier Draft resumed, decision 23). A finished draft stays on
+screen, with its pool, until the next one starts. A failure or an unreadable log
+is shown instead of the draft, which would otherwise look current.
