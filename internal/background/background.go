@@ -62,10 +62,25 @@ type LogSetup struct {
 	// after the draft parser has read them. Nil is the usual: tests set it to
 	// see what was read.
 	Lines func([]string)
+	// WantSet is told the set of each draft the log starts, so its cards
+	// can be fetched: Cards.Want in the app. Nil fetches nothing.
+	WantSet func(set string)
 }
 
 // The task the log goroutine does, as the window names it if it stops.
 const logTask = "Watching Arena's log"
+
+// All is starts run in order: each only starts goroutines, so together they
+// still return at once.
+func All(starts ...Start) Start {
+	return func(ctx context.Context, post Post) {
+		for _, s := range starts {
+			if s != nil {
+				s(ctx, post)
+			}
+		}
+	}
+}
 
 // FindLog decides, before the window opens, how the log will be found. With
 // -log, the path is checked now, and a bad one is an error for main to report
@@ -116,6 +131,13 @@ func follower(s LogSetup, post Post) (f arena.Follower, reset func()) {
 		var events []arena.Event
 		for _, l := range lines {
 			events = append(events, parser.Line(l)...)
+		}
+		if s.WantSet != nil {
+			for _, e := range events {
+				if d, ok := e.(arena.DraftStarted); ok {
+					s.WantSet(d.Set)
+				}
+			}
 		}
 		if len(events) > 0 {
 			post(app.DraftEvents{Events: events})

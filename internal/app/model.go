@@ -56,6 +56,14 @@ type Model struct {
 	// none. A finished draft stays until the next one starts, so the window
 	// can show what was drafted.
 	Draft *draft.Draft
+	// CardSets is what is known of the cards of each set a draft has
+	// needed, by set code as Arena writes it ("FRA"). A set not in it has
+	// not been looked for yet.
+	CardSets map[string]CardSet
+	// CacheProblem is why card details cannot be saved in CacheDir, while
+	// they cannot; empty when the cache works.
+	CacheProblem string
+	CacheDir     string
 	// Failure is the first background task that stopped unexpectedly, or
 	// nil. It is kept until restart: the task is not running any more, so
 	// whatever it would have shown never will.
@@ -202,6 +210,8 @@ func (m Model) Apply(msg Msg) Model {
 		m.Searched = true
 		m.Looked = slices.Clone(msg.Looked)
 		m.Given = msg.Given
+	case CardsFetching, CardsLoaded, CardsFailed, CacheUnavailable:
+		return m.applyCards(msg)
 	case TaskFailed:
 		if m.Failure != nil {
 			// The first failure is the one most likely to explain the rest.

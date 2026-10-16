@@ -49,6 +49,11 @@ by rating, with card images, before the pick timer matters. macOS and Linux
     relaunch through the next pick. No fixture shows what a draft against
     people logs on rejoining, so the parser cannot yet tell such a draft's
     event or set (decision 23).
+  - [ ] Scryfall's search for FRA, recorded, to replace the pages under
+    `testdata/scryfall/`, which were written to Scryfall's documented schema
+    because the session that built the client could not reach it. The
+    command and what to keep are in `testdata/scryfall/README.md`. The tests
+    name the cards they expect, so those names change with the pages.
 
 - [ ] **Parse the remaining draft formats.** *Each blocked on its fixture.*
   Whichever of these the parsing task did not already cover, one PR per
@@ -59,23 +64,6 @@ by rating, with card images, before the pick timer matters. macOS and Linux
   - [x] Premier Draft
   - [x] Quick Draft (bot draft)
   - [ ] Traditional Draft
-
-- [ ] **Card names and details from Scryfall, cached offline.**
-  - The app's HTTP client (decision 9): User-Agent, per-host rate limiter,
-    context, conditional requests. Goes in `fetch/`; every later source uses it.
-  - The SQLite store (decision 11): schema with migrations, sets and cards
-    keyed by Arena id. Raise the size budget in the same PR, with the measured
-    cost.
-  - When a draft starts in a set not in the store, fetch that set's cards from
-    Scryfall's paged search and store them; never the bulk file. Subsequent
-    drafts of the set make no Scryfall API requests.
-  - The pack shows names, mana cost, type, and rarity. Cards Scryfall does not
-    know yet show by id with a note (decision 15). A visible loading state while
-    the set is fetched; a clear message if the network is down, and the ids
-    still shown.
-  - Update the network budget in `docs/ARCHITECTURE.md` if reality differs.
-  - Tests: `httptest` with recorded pages; paging; a 429 backs off and
-    retries; a cache hit makes no request; offline; an unwritable cache dir.
 
 - [ ] **Ratings from 17lands, and the pack ranked by them.**
   - First confirm 17lands' current endpoints, response fields, and terms, and
@@ -152,6 +140,11 @@ Each needs a decision from the maintainer before it becomes a task.
   from Steam's `libraryfolders.vdf`) and the Heroic launcher's prefixes. Each
   means reading another application's files, whose layout should come from a
   real install, not from memory (decision 20).
+- **Cards from outside the drafted set.** A pack holding a card printed in
+  another set (a bonus sheet) would show it as "Not on Scryfall yet", since
+  only the drafted set is searched. Neither fixture's packs hold one; a
+  fixture that does would show which set to search, or whether to look such
+  cards up one by one (decision 26).
 - **A startup-time gate in CI.** The time to first frame is reported on every
   PR (decision 19) but not gated; whether to fail CI on it, and at what
   number, waits on enough CI runs to see how much it varies.
@@ -180,3 +173,7 @@ Each needs a decision from the maintainer before it becomes a task.
 - [x] Tracking the draft: the log's draft events reach the model, and the
   window shows the pack by card id with pack and pick, the picks so far, and
   the pool when it ends; repeated picks and a resumed bot draft read once. (24)
+- [x] Card names from Scryfall, cached offline: the app's HTTP client, the
+  SQLite store, a set fetched once by paged search and refreshed weekly, the
+  pack, picks and pool by name with cost, type and rarity, and loading,
+  offline and unusable-cache states that say what to do. (11, 15, 25, 26)

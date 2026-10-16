@@ -134,16 +134,16 @@ func TestTheDraftScreenSaysWhichDraftAndWhereInIt(t *testing.T) {
 
 	m = m.Apply(DraftEvents{Events: []arena.Event{p1p1}})
 	s = m.DraftScreen()
-	if s.Position != "Pack 1 · Pick 1" || s.Heading != "3 cards in this pack" || !slices.Equal(s.Cards, []string{"106325", "106235", "106453"}) {
+	if s.Position != "Pack 1 · Pick 1" || s.Heading != "3 cards in this pack" || !slices.Equal(s.Cards, []CardLine{{Name: "Card 106325"}, {Name: "Card 106235"}, {Name: "Card 106453"}}) {
 		t.Errorf("with the first pack: %+v", s)
 	}
 
 	m = m.Apply(DraftEvents{Events: []arena.Event{arena.PickMade{Pack: 1, Pick: 1, Card: 106453}}})
 	s = m.DraftScreen()
-	if s.Heading != "You took 106453. Waiting for the next pack." || s.Cards != nil {
+	if s.Heading != "You took Card 106453. Waiting for the next pack." || s.Cards != nil {
 		t.Errorf("after picking: heading %q, cards %v; want the pick named and the pack gone", s.Heading, s.Cards)
 	}
-	if s.PicksHeading != "Your picks (1)" || !slices.Equal(s.Picks, []string{"Pack 1: 106453"}) {
+	if s.PicksHeading != "Your picks (1)" || !slices.Equal(s.Picks, []string{"Pack 1: Card 106453"}) {
 		t.Errorf("after picking: %q %q", s.PicksHeading, s.Picks)
 	}
 
@@ -165,7 +165,7 @@ func TestPicksAreListedOneLinePerPackInTheOrderTaken(t *testing.T) {
 	if s.PicksHeading != "Your picks (16)" || len(s.Picks) != 2 {
 		t.Fatalf("at p2p3: %q %q, want 16 picks on two lines", s.PicksHeading, s.Picks)
 	}
-	if !strings.HasPrefix(s.Picks[0], "Pack 1: 106453, 106225, ") || strings.Count(s.Picks[0], ",") != 13 {
+	if !strings.HasPrefix(s.Picks[0], "Pack 1: Card 106453, Card 106225, ") || strings.Count(s.Picks[0], ",") != 13 {
 		t.Errorf("first line %q, want pack 1's 14 picks from 106453", s.Picks[0])
 	}
 	if !strings.HasPrefix(s.Picks[1], "Pack 2: ") || strings.Count(s.Picks[1], ",") != 1 {
@@ -220,8 +220,8 @@ func TestWhileCatchingUpTheDraftScreenSaysThePackMayBeOld(t *testing.T) {
 	if s := m.DraftScreen(); !strings.Contains(s.Footnote, "Catching up") {
 		t.Errorf("catching up, footnote %q", s.Footnote)
 	}
-	if s := m.Apply(LogCaughtUp{}).DraftScreen(); !strings.Contains(s.Footnote, "Arena id") {
-		t.Errorf("caught up, footnote %q, want it to say what the numbers are", s.Footnote)
+	if s := m.Apply(LogCaughtUp{}).DraftScreen(); strings.Contains(s.Footnote, "Catching up") {
+		t.Errorf("caught up, footnote %q, still catching up", s.Footnote)
 	}
 }
 

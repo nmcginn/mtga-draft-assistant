@@ -96,6 +96,11 @@ that needs persistence pays for by raising the size budget. `mattn/go-sqlite3`
 is forbidden by lint because it needs cgo. As with eks-wrangler's async runtime,
 the dependency arrives with the first code that uses it, not in the skeleton.
 
+*Measured when it arrived:* 4.1 MiB, not 5–8, taking the release binary from
+22.2 to 26.3 MiB, inside the 28 MiB budget, which was left where it is. The
+database is opened by URI (`file:` with the path escaped), because the driver
+cuts a plain path at its first `?`.
+
 ### 12. Card images go through our own store, never go-gui's URL loader
 
 Given an `http(s)` URL, go-gui's `Image` downloads it to `os.TempDir()` with no
@@ -133,6 +138,12 @@ cards, the card shows by id with a "not on Scryfall yet" note rather than not at
 all. Reading Arena's own local card database is a possible fallback, left as a
 roadmap decision. *(to confirm: Scryfall's coverage of `arena_id` for the current
 draft sets)*
+
+*Not yet confirmed:* the session that built the Scryfall client could not
+reach Scryfall, so its tests run on pages written to Scryfall's documented
+schema rather than recorded (`testdata/scryfall/README.md`). Every card id in
+both FRA fixtures' packs falls in one run (106225–106535), which is what one
+set searched by code would cover.
 
 ### 16. Cache directory for everything; read-only toward Arena
 
@@ -245,3 +256,39 @@ placed where they might have been. A pack or pick with no draft started begins
 one with no name (Premier Draft resumed, decision 23). A finished draft stays on
 screen, with its pool, until the next one starts. A failure or an unreadable log
 is shown instead of the draft, which would otherwise look current.
+
+### 25. One HTTP client: a slot per host, backoff that the whole host obeys
+
+`fetch.Client` is decision 9 built. Each host has a least interval between
+the starts of two requests (Scryfall 500 ms, five times what it asks for,
+since a set is a few pages; any host not written down, 1 s), booked under a
+lock so goroutines share it. A 429 or 503 is retried up to three times after
+`Retry-After` (seconds or a date; over a minute is not waited on in-request)
+or 1 s doubling, and the wait is put on the host, so the next request to it
+waits too. Redirects are not followed: they would be requests to a host we
+did not choose. Bodies are capped (16 MiB by default). Errors are worded for
+the user: `HostError` is "can't reach api.scryfall.com", `StatusError` "…
+answered 500 Internal Server Error" or "… is busy". Conditional requests
+(`ETag`, `Last-Modified`) are supported for the sources that refresh one
+document (ratings); Scryfall's search is several pages that can change
+independently, so a stale set is fetched again whole rather than asked about
+page by page.
+
+### 26. A set's cards: fetched once, shown at once, retried while offline
+
+The log task tells the card task the set of each draft it reads the start of;
+only the latest set asked for is fetched, so catching up on a session with
+several drafts fetches the one on screen. The card task opens the cache only
+then, so a launch with no draft never touches the disk. A stored set is shown
+at once; if it is older than a week (a day, when Scryfall had no cards for
+it, as with a set too new for it), it is fetched again quietly, and a
+failure then leaves the stored cards on screen. A set not stored is fetched,
+saved in one transaction (never half a set), and shown; a fetch that fails on
+any page fails whole. Offline, the window says what failed and when it tries
+again: 30 s, doubling to every 5 min, for as long as that set is the one
+wanted. A cache that cannot be used is reported under the draft with what to
+do, and the cards are fetched each launch instead. In the window, a card
+with no details is "Card 106325": with "Not on Scryfall yet" under it when its
+set is known and it is not in it, or one notice above the pack when the
+whole set is still coming, could not be fetched, or was never named by the
+log. Scryfall is credited under the draft.

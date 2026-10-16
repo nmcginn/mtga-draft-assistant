@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/nmcginn/mtga-draft-assistant/internal/arena"
@@ -20,11 +19,15 @@ type DraftScreen struct {
 	// Position is where in the draft the player is: "Pack 1 · Pick 3", or
 	// "Draft complete". Empty before the first pack.
 	Position string
+	// Notice says why cards are shown by their Arena id rather than by
+	// name, when they are: still loading, Scryfall out of reach. Empty
+	// when there is nothing to explain.
+	Notice string
 	// Heading is the line over the pack: how many cards it holds, or what
 	// the player is waiting for.
 	Heading string
-	// Cards is the pack, one card a line, in Arena's order.
-	Cards []string
+	// Cards is the pack, in Arena's order.
+	Cards []CardLine
 	// PicksHeading is the line over the picks, with their count; empty
 	// before the first pick.
 	PicksHeading string
@@ -32,6 +35,15 @@ type DraftScreen struct {
 	Picks []string
 	// Footnote is a smaller note under it all.
 	Footnote string
+}
+
+// CardLine is one card in the pack: its name, and under it its mana cost,
+// type, and rarity. A card with no details is named by its Arena id, and its
+// Detail says why when the reason is the card's own (Scryfall does not have
+// it yet); when it is the whole set's, the screen's Notice says so once.
+type CardLine struct {
+	Name   string
+	Detail string
 }
 
 // ShowsDraft reports whether the window shows the draft (DraftScreen) rather
@@ -55,41 +67,53 @@ func (m Model) DraftScreen() DraftScreen {
 	if d == nil {
 		return DraftScreen{}
 	}
+	name := func(id int) string { return m.cardName(d.Set, id) }
 	s := DraftScreen{Title: draftTitle(*d)}
-	if !m.CaughtUp {
-		// The pack on screen may be one from earlier in the session that
-		// the log has not got past yet.
-		s.Footnote = "Catching up on Arena's log; the pack shown may not be the latest yet."
-	} else {
-		s.Footnote = "Cards are listed by their Arena id: card names are not available yet."
-	}
 
+	var shown []int // every card id on screen, to say why any is unnamed
 	if d.Done {
 		s.Position = "Draft complete"
 		s.Heading = "Start another draft in Arena and its first pack appears here."
-		s.PicksHeading = fmt.Sprintf("Your pool (%s)", cards(len(d.Pool)))
-		s.Picks = poolLines(*d)
-		return s
-	}
-
-	if d.Pack > 0 {
-		s.Position = fmt.Sprintf("Pack %d · Pick %d", d.Pack, d.Pick)
-	}
-	switch card, picked := d.Picked(); {
-	case d.Cards == nil:
-		s.Heading = "Waiting for the first pack."
-	case picked:
-		s.Heading = fmt.Sprintf("You took %d. Waiting for the next pack.", card)
-	default:
-		s.Heading = fmt.Sprintf("%s in this pack", cards(len(d.Cards)))
-		s.Cards = make([]string, len(d.Cards))
-		for i, c := range d.Cards {
-			s.Cards[i] = strconv.Itoa(c)
+		s.PicksHeading = fmt.Sprintf("Your pool (%s)", cardCount(len(d.Pool)))
+		s.Picks = poolLines(*d, name)
+		shown = d.Pool
+	} else {
+		if d.Pack > 0 {
+			s.Position = fmt.Sprintf("Pack %d · Pick %d", d.Pack, d.Pick)
+		}
+		switch card, picked := d.Picked(); {
+		case d.Cards == nil:
+			s.Heading = "Waiting for the first pack."
+		case picked:
+			s.Heading = fmt.Sprintf("You took %s. Waiting for the next pack.", name(card))
+			shown = append(shown, card)
+		default:
+			s.Heading = fmt.Sprintf("%s in this pack", cardCount(len(d.Cards)))
+			s.Cards = make([]CardLine, len(d.Cards))
+			for i, c := range d.Cards {
+				s.Cards[i] = m.cardLine(d.Set, c)
+			}
+			shown = append(shown, d.Cards...)
+		}
+		if len(d.Picks) > 0 {
+			s.PicksHeading = fmt.Sprintf("Your picks (%d)", len(d.Picks))
+			s.Picks = pickLines(d.Picks, name)
+			for _, p := range d.Picks {
+				shown = append(shown, p.Card)
+			}
 		}
 	}
-	if len(d.Picks) > 0 {
-		s.PicksHeading = fmt.Sprintf("Your picks (%d)", len(d.Picks))
-		s.Picks = pickLines(d.Picks)
+	s.Notice = m.cardsNotice(d.Set, shown)
+
+	switch {
+	case !m.CaughtUp:
+		// The pack on screen may be one from earlier in the session that
+		// the log has not got past yet.
+		s.Footnote = "Catching up on Arena's log; the pack shown may not be the latest yet."
+	case m.CacheProblem != "":
+		s.Footnote = m.cacheNote()
+	case len(m.CardSets[d.Set].Cards) > 0:
+		s.Footnote = "Card details from Scryfall."
 	}
 	return s
 }
@@ -110,17 +134,17 @@ func draftTitle(d draft.Draft) string {
 	return d.Set + " · " + name
 }
 
-func cards(n int) string {
+func cardCount(n int) string {
 	if n == 1 {
 		return "1 card"
 	}
 	return fmt.Sprintf("%d cards", n)
 }
 
-// pickLines groups picks, in the order taken, into one line per pack:
-// "Pack 1: 106453, 106225". Picks whose pack the log did not say are
-// "Earlier".
-func pickLines(picks []draft.Pick) []string {
+// pickLines groups picks, in the order taken, into one line per pack, each
+// card named by name: "Pack 1: Gilded Pathfinder, Card 106225". Picks whose
+// pack the log did not say are "Earlier".
+func pickLines(picks []draft.Pick, name func(int) string) []string {
 	var lines []string
 	var line strings.Builder
 	for i, p := range picks {
@@ -137,7 +161,7 @@ func pickLines(picks []draft.Pick) []string {
 		} else {
 			line.WriteString(", ")
 		}
-		line.WriteString(strconv.Itoa(p.Card))
+		line.WriteString(name(p.Card))
 	}
 	if len(picks) > 0 {
 		lines = append(lines, line.String())
@@ -148,7 +172,7 @@ func pickLines(picks []draft.Pick) []string {
 // poolLines is a finished draft's pool. When the picks read are exactly the
 // pool, they are shown by pack, in the order taken; otherwise some picks were
 // missed (the log began mid-draft), and the pool is shown as Arena gave it.
-func poolLines(d draft.Draft) []string {
+func poolLines(d draft.Draft, name func(int) string) []string {
 	if len(d.Pool) == 0 {
 		return nil
 	}
@@ -160,11 +184,11 @@ func poolLines(d draft.Draft) []string {
 	slices.Sort(picked)
 	slices.Sort(pool)
 	if slices.Equal(picked, pool) {
-		return pickLines(d.Picks)
+		return pickLines(d.Picks, name)
 	}
-	ids := make([]string, len(d.Pool))
+	names := make([]string, len(d.Pool))
 	for i, c := range d.Pool {
-		ids[i] = strconv.Itoa(c)
+		names[i] = name(c)
 	}
-	return []string{strings.Join(ids, ", ")}
+	return []string{strings.Join(names, ", ")}
 }
