@@ -442,3 +442,54 @@ func TestALogWithNoDraftSendsNoDraftEvents(t *testing.T) {
 	start(t.Context(), post)
 	expect[app.LogCaughtUp](t, next)
 }
+
+func TestEachDraftTheLogStartsAsksForItsSetsCards(t *testing.T) {
+	for _, fixture := range []string{premierFixture, quickFixture} {
+		path := filepath.Join(t.TempDir(), "Player.log")
+		writeFile(t, path, readFixture(t, fixture))
+		s := setup(t.TempDir(), path)
+		wanted := make(chan string, 10)
+		s.WantSet = func(set string) { wanted <- set }
+		model, start, err := FindLog(s)
+		if err != nil {
+			t.Fatal(err)
+		}
+		post, next := collect(t)
+		start(t.Context(), post)
+		applyUntil[app.LogCaughtUp](t, model, next)
+		select {
+		case set := <-wanted:
+			if set != "FRA" {
+				t.Errorf("%s: asked for %q, want FRA", fixture, set)
+			}
+		default:
+			t.Errorf("%s: no set was asked for", fixture)
+		}
+	}
+}
+
+func TestALogWithNoDraftAsksForNoCards(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "Player.log")
+	writeFile(t, path, "[UnityCrossThreadLogger]Nothing about drafting\n")
+	s := setup(t.TempDir(), path)
+	asked := false
+	s.WantSet = func(string) { asked = true }
+	model, start, err := FindLog(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	post, next := collect(t)
+	start(t.Context(), post)
+	applyUntil[app.LogCaughtUp](t, model, next)
+	if asked {
+		t.Error("a log with no draft asked for a set's cards")
+	}
+}
+
+func TestAllStartsEveryTask(t *testing.T) {
+	var ran []int
+	All(func(context.Context, Post) { ran = append(ran, 1) }, nil, func(context.Context, Post) { ran = append(ran, 2) })(t.Context(), func(app.Msg) {})
+	if !slices.Equal(ran, []int{1, 2}) {
+		t.Errorf("ran %v", ran)
+	}
+}

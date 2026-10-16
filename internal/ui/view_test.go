@@ -3,6 +3,8 @@ package ui
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"slices"
 	"strings"
@@ -14,6 +16,9 @@ import (
 	"github.com/nmcginn/mtga-draft-assistant/internal/app"
 	"github.com/nmcginn/mtga-draft-assistant/internal/arena"
 	"github.com/nmcginn/mtga-draft-assistant/internal/background"
+	"github.com/nmcginn/mtga-draft-assistant/internal/cards"
+	"github.com/nmcginn/mtga-draft-assistant/internal/fetch"
+	"github.com/nmcginn/mtga-draft-assistant/internal/fetch/scryfall"
 )
 
 // render builds the real window headless, at the given size, and returns the
@@ -280,6 +285,25 @@ func drafting(events ...arena.Event) app.Model {
 var (
 	premierStart = arena.DraftStarted{Event: "PremierDraft_FRA_20260929", Set: "FRA", Format: arena.PremierDraft}
 	firstPack    = arena.PackShown{Pack: 1, Pick: 1, Cards: []int{106325, 106235, 106268, 106407, 106411, 106335, 106385, 106391, 106444, 106321, 106501, 106485, 106453, 106439}}
+	// fraCards is FRA's cards as the card task reports them, for the
+	// first pack but its last card (106439), which stands for one
+	// Scryfall does not know yet. The names are invented, as in
+	// testdata/scryfall.
+	fraCards = app.CardsLoaded{Set: "FRA", Cards: []cards.Card{
+		{ArenaID: 106325, Set: "FRA", Name: "Verdant Oathkeeper", ManaCost: "{2}{G}{G}", TypeLine: "Creature — Elf Druid", Rarity: "uncommon"},
+		{ArenaID: 106235, Set: "FRA", Name: "Thornwood Scout", ManaCost: "{G}", TypeLine: "Creature — Elf Scout", Rarity: "common"},
+		{ArenaID: 106268, Set: "FRA", Name: "Ashen Courier", ManaCost: "{1}{B}", TypeLine: "Creature — Human Rogue", Rarity: "common"},
+		{ArenaID: 106407, Set: "FRA", Name: "Duskmarch Paladin", ManaCost: "{W/B}{W/B}", TypeLine: "Creature — Human Knight", Rarity: "uncommon"},
+		{ArenaID: 106411, Set: "FRA", Name: "Sovereign of the Hollow", ManaCost: "{3}{B}{B}", TypeLine: "Legendary Creature — Vampire Noble", Rarity: "mythic"},
+		{ArenaID: 106335, Set: "FRA", Name: "Ember Litany", ManaCost: "{X}{R}", TypeLine: "Sorcery", Rarity: "rare"},
+		{ArenaID: 106385, Set: "FRA", Name: "Tidecaller's Riddle", ManaCost: "{1}{U}", TypeLine: "Instant", Rarity: "common"},
+		{ArenaID: 106391, Set: "FRA", Name: "Mossback Pathway", TypeLine: "Land", Rarity: "uncommon"},
+		{ArenaID: 106444, Set: "FRA", Name: "Lanternwatch Recruit // Lanternwatch Captain", ManaCost: "{1}{W}", TypeLine: "Creature — Human Soldier // Creature — Human Soldier", Rarity: "rare"},
+		{ArenaID: 106321, Set: "FRA", Name: "Gale Lantern", ManaCost: "{2}", TypeLine: "Artifact", Rarity: "uncommon"},
+		{ArenaID: 106501, Set: "FRA", Name: "Stormglass Adept", ManaCost: "{2}{U}", TypeLine: "Creature — Merfolk Wizard", Rarity: "common"},
+		{ArenaID: 106485, Set: "FRA", Name: "Forest", TypeLine: "Basic Land — Forest", Rarity: "common"},
+		{ArenaID: 106453, Set: "FRA", Name: "Gilded Pathfinder", ManaCost: "{1}{G}", TypeLine: "Creature — Elf Ranger", Rarity: "common"},
+	}}
 )
 
 // fullDraft is a model that has read the whole Premier Draft fixture.
@@ -298,15 +322,14 @@ func fullDraft(t *testing.T) app.Model {
 }
 
 func TestThePackIsShownCardByCardWithWhereInTheDraftItIs(t *testing.T) {
-	model := drafting(premierStart, firstPack)
+	model := drafting(premierStart, firstPack).Apply(fraCards)
 	_, got := render(t, model, defaultWidth, defaultHeight)
-	s := model.DraftScreen()
-	for _, want := range append([]string{"FRA · Premier Draft", "Pack 1 · Pick 1", "14 cards in this pack", s.Footnote}, s.Cards...) {
+	for _, want := range []string{"FRA · Premier Draft", "Pack 1 · Pick 1", "14 cards in this pack", "Card details from Scryfall."} {
 		if !slices.Contains(got, want) {
 			t.Errorf("window shows %q, want %q", got, want)
 		}
 	}
-	if i, j := slices.Index(got, "106325"), slices.Index(got, "106439"); i < 0 || j < i {
+	if i, j := slices.Index(got, "Verdant Oathkeeper"), slices.Index(got, "Card 106439"); i < 0 || j < i {
 		t.Errorf("window shows %q, want the pack in Arena's order", got)
 	}
 	if slices.Contains(got, model.Status().Headline) {
@@ -314,14 +337,89 @@ func TestThePackIsShownCardByCardWithWhereInTheDraftItIs(t *testing.T) {
 	}
 }
 
-func TestAfterAPickTheWindowSaysItIsWaitingAndListsThePick(t *testing.T) {
-	_, got := render(t, drafting(premierStart, firstPack, arena.PickMade{Pack: 1, Pick: 1, Card: 106453}), defaultWidth, defaultHeight)
-	for _, want := range []string{"You took 106453. Waiting for the next pack.", "Your picks (1)", "Pack 1: 106453"} {
+func TestEachCardShowsItsNameCostTypeAndRarity(t *testing.T) {
+	_, got := render(t, drafting(premierStart, firstPack).Apply(fraCards), defaultWidth, defaultHeight)
+	for _, want := range []string{
+		"Verdant Oathkeeper", "2GG · Creature — Elf Druid · Uncommon",
+		"Duskmarch Paladin", "(W/B)(W/B) · Creature — Human Knight · Uncommon",
+		"Forest", "Basic Land — Forest · Common",
+	} {
 		if !slices.Contains(got, want) {
 			t.Errorf("window shows %q, want %q", got, want)
 		}
 	}
-	if slices.Contains(got, "106325") {
+	if i := slices.Index(got, "Verdant Oathkeeper"); i < 0 || i+1 >= len(got) || got[i+1] != "2GG · Creature — Elf Druid · Uncommon" {
+		t.Errorf("window shows %q, want a card's details straight under its name", got)
+	}
+}
+
+func TestACardScryfallDoesNotKnowShowsByIDAndSaysSo(t *testing.T) {
+	_, got := render(t, drafting(premierStart, firstPack).Apply(fraCards), defaultWidth, defaultHeight)
+	i := slices.Index(got, "Card 106439")
+	if i < 0 || i+1 >= len(got) || got[i+1] != "Not on Scryfall yet" {
+		t.Errorf("window shows %q, want 106439 by id with a note", got)
+	}
+}
+
+func TestWhileTheSetIsFetchedTheWindowSaysSoAndShowsTheCardsByID(t *testing.T) {
+	_, got := render(t, drafting(premierStart, firstPack).Apply(app.CardsFetching{Set: "FRA"}), defaultWidth, defaultHeight)
+	if !slices.ContainsFunc(got, func(s string) bool { return strings.HasPrefix(s, "Fetching FRA's cards from Scryfall") }) {
+		t.Errorf("window shows %q, want that FRA is being fetched", got)
+	}
+	if !slices.Contains(got, "Card 106325") || !slices.Contains(got, "Card 106439") {
+		t.Errorf("window shows %q, want the pack by id meanwhile", got)
+	}
+}
+
+func TestOfflineTheWindowSaysWhatFailedAndStillShowsThePack(t *testing.T) {
+	model := drafting(premierStart, firstPack).Apply(app.CardsFailed{Set: "FRA", Err: errors.New("can't reach api.scryfall.com"), RetryIn: time.Minute})
+	_, got := render(t, model, defaultWidth, defaultHeight)
+	want := "Couldn't get FRA's cards from Scryfall (can't reach api.scryfall.com). Check your internet connection; " +
+		"the assistant tries again in 1 minute, and shows cards by their Arena id until then."
+	if !slices.Contains(got, want) {
+		t.Errorf("window shows %q, want %q", got, want)
+	}
+	if !slices.Contains(got, "Card 106325") || !slices.Contains(got, "14 cards in this pack") {
+		t.Errorf("window shows %q, want the pack by id", got)
+	}
+}
+
+func TestTheSetArrivingPutsNamesOnScreenTheFrameAfter(t *testing.T) {
+	w, _ := render(t, drafting(premierStart, firstPack).Apply(app.CardsFetching{Set: "FRA"}), defaultWidth, defaultHeight)
+	w.FrameFn()
+	Post(w, fraCards)
+	if !w.FrameFn() {
+		t.Error("the frame after the set arrived did not rebuild the view")
+	}
+	got := texts(w.TestRender(nil))
+	if !slices.Contains(got, "Verdant Oathkeeper") || slices.Contains(got, "Card 106325") {
+		t.Errorf("after the set arrived the window shows %q", got)
+	}
+	if slices.ContainsFunc(got, func(s string) bool { return strings.HasPrefix(s, "Fetching") }) {
+		t.Errorf("after the set arrived the window still says it is fetching: %q", got)
+	}
+}
+
+func TestAnUnusableCacheIsNotedWithWhatToDo(t *testing.T) {
+	model := drafting(premierStart, firstPack).Apply(fraCards).
+		Apply(app.CacheUnavailable{Dir: "/home/me/.cache/mtga-draft-assistant", Err: errors.New("permission denied")})
+	_, got := render(t, model, defaultWidth, defaultHeight)
+	if !slices.Contains(got, model.DraftScreen().Footnote) || !strings.Contains(model.DraftScreen().Footnote, "permission denied") {
+		t.Errorf("window shows %q, want the cache problem in the footnote", got)
+	}
+	if !slices.Contains(got, "Verdant Oathkeeper") {
+		t.Errorf("window shows %q, want the cards still named", got)
+	}
+}
+
+func TestAfterAPickTheWindowSaysItIsWaitingAndListsThePick(t *testing.T) {
+	_, got := render(t, drafting(premierStart, firstPack, arena.PickMade{Pack: 1, Pick: 1, Card: 106453}).Apply(fraCards), defaultWidth, defaultHeight)
+	for _, want := range []string{"You took Gilded Pathfinder. Waiting for the next pack.", "Your picks (1)", "Pack 1: Gilded Pathfinder"} {
+		if !slices.Contains(got, want) {
+			t.Errorf("window shows %q, want %q", got, want)
+		}
+	}
+	if slices.Contains(got, "Verdant Oathkeeper") {
 		t.Errorf("window shows %q, still listing the pack picked from", got)
 	}
 }
@@ -344,7 +442,7 @@ func TestAPackArrivingIsOnScreenTheFrameAfterItIsPosted(t *testing.T) {
 	if !w.FrameFn() {
 		t.Error("the frame after a pack arrived did not rebuild the view")
 	}
-	if got := texts(w.TestRender(nil)); !slices.Contains(got, "106325") {
+	if got := texts(w.TestRender(nil)); !slices.Contains(got, "Card 106325") {
 		t.Errorf("after the pack arrived the window shows %q", got)
 	}
 }
@@ -352,10 +450,10 @@ func TestAPackArrivingIsOnScreenTheFrameAfterItIsPosted(t *testing.T) {
 func TestTheDraftFitsTinyAndNarrowWindowsWithoutLosingCards(t *testing.T) {
 	// A whole pack and three packs of picks are taller than the window; the
 	// view scrolls rather than dropping them.
-	model := drafting(premierStart, firstPack)
+	model := drafting(premierStart, firstPack).Apply(fraCards)
 	for _, size := range [][2]int{{1, 1}, {minWidth, minHeight}} {
 		_, got := render(t, model, size[0], size[1])
-		for _, want := range []string{"FRA · Premier Draft", "106325", "106439"} {
+		for _, want := range []string{"FRA · Premier Draft", "Verdant Oathkeeper", "2GG · Creature — Elf Druid · Uncommon", "Card 106439"} {
 			if !slices.Contains(got, want) {
 				t.Errorf("at %dx%d the window shows %q, missing %q", size[0], size[1], got, want)
 			}
@@ -385,14 +483,26 @@ func TestTheDraftViewTakesItsColoursFromTheTheme(t *testing.T) {
 	custom.Background = gui.Hex(0x123456)
 	custom.Text = gui.Hex(0x654321)
 	custom.TextMuted = gui.Hex(0x112233)
-	w := gui.NewTestWindow(t, gui.WindowCfg{State: &state{model: drafting(premierStart, firstPack), theme: custom}})
-	ly := w.TestRender(mainView)
-	if s := find(ly, "draft"); s == nil || s.Color != custom.Background {
-		t.Error("the draft view did not paint the theme's background")
-	}
-	for id, want := range map[string]gui.Color{"draft-title": custom.Text, "draft-card-0": custom.Text, "draft-heading": custom.TextMuted, "draft-footnote": custom.TextMuted} {
-		if s := find(ly, id); s == nil || s.TC == nil || s.TC.TextStyle.Color != want {
-			t.Errorf("%s is not in the theme's colour", id)
+	// Named cards, with their details and the footnote; and the same pack
+	// while its set is fetched, with the notice saying so.
+	for model, ids := range map[*app.Model]map[string]gui.Color{
+		new(drafting(premierStart, firstPack).Apply(fraCards)): {
+			"draft-title": custom.Text, "draft-card-0": custom.Text, "draft-card-0-detail": custom.TextMuted,
+			"draft-heading": custom.TextMuted, "draft-footnote": custom.TextMuted,
+		},
+		new(drafting(premierStart, firstPack).Apply(app.CardsFetching{Set: "FRA"})): {
+			"draft-notice": custom.TextMuted, "draft-card-0": custom.Text,
+		},
+	} {
+		w := gui.NewTestWindow(t, gui.WindowCfg{State: &state{model: *model, theme: custom}})
+		ly := w.TestRender(mainView)
+		if s := find(ly, "draft"); s == nil || s.Color != custom.Background {
+			t.Error("the draft view did not paint the theme's background")
+		}
+		for id, want := range ids {
+			if s := find(ly, id); s == nil || s.TC == nil || s.TC.TextStyle.Color != want {
+				t.Errorf("%s is not in the theme's colour", id)
+			}
 		}
 	}
 }
@@ -402,7 +512,7 @@ func TestAFailureWhileDraftingReplacesTheDraft(t *testing.T) {
 	Post(w, app.TaskFailed{Task: "Watching Arena's log", Err: errors.New("boom")})
 	w.FrameFn()
 	got := texts(w.TestRender(nil))
-	if !slices.Contains(got, "Something went wrong") || slices.Contains(got, "106325") {
+	if !slices.Contains(got, "Something went wrong") || slices.Contains(got, "Card 106325") {
 		t.Errorf("window shows %q, want the failure and not the stale pack", got)
 	}
 }
@@ -434,5 +544,53 @@ func TestADraftTallerThanTheWindowScrolls(t *testing.T) {
 	w.FrameFn()
 	if _, y, err := w.TestScrollOffset("draft"); err != nil || y == 0 {
 		t.Errorf("after scrolling, offset %v (%v); want the view moved", y, err)
+	}
+}
+
+func TestTheRealTasksPutAFixturesDraftOnScreenWithCardNamesFromScryfall(t *testing.T) {
+	// End to end, without a display or the network: -log naming the
+	// Premier Draft fixture, and the card task fetching FRA from an
+	// httptest server serving testdata/scryfall into a fresh cache.
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		page := "fra-search-page1.json"
+		if r.URL.Query().Get("page") == "2" {
+			page = "fra-search-page2.json"
+		}
+		b, err := os.ReadFile("../../testdata/scryfall/" + page)
+		if err != nil {
+			t.Error(err)
+		}
+		_, _ = w.Write([]byte(strings.ReplaceAll(string(b), scryfall.BaseURL, srv.URL)))
+	}))
+	defer srv.Close()
+	cardTask := background.NewCards(background.CardSetup{
+		Dir: t.TempDir(),
+		Source: scryfall.Source{BaseURL: srv.URL, Client: fetch.New(fetch.Options{
+			UserAgent: "mtga-draft-assistant/test", Transport: srv.Client().Transport,
+			Limits: map[string]time.Duration{"127.0.0.1": time.Millisecond},
+		})},
+	})
+	model, start, err := background.FindLog(background.LogSetup{
+		Flag: "../../testdata/logs/2026-10-fra-premier-full-draft.log", GOOS: "linux", Home: t.TempDir(),
+		Getenv: func(string) string { return "" }, WantSet: cardTask.Want,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := gui.NewTestWindow(t, windowCfg(t.Context(), model, Options{Start: background.All(cardTask.Start, start)}))
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		w.FrameFn()
+		got := texts(w.TestRender(nil))
+		// The fixture's first pick is 106453, which testdata/scryfall names.
+		if slices.Contains(got, "Card details from Scryfall.") &&
+			slices.ContainsFunc(got, func(s string) bool { return strings.HasPrefix(s, "Pack 1: Gilded Pathfinder, ") }) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("after 5s the window shows %q, never the pool by name", got)
+		}
+		time.Sleep(time.Millisecond)
 	}
 }

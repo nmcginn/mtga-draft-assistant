@@ -44,9 +44,21 @@ max_ticks=${SMOKE_MAX_IDLE_TICKS:-10}
 # The app's stderr goes to a file so the startup line can be picked out of
 # it; it is shown in full if anything goes wrong.
 log=$(mktemp)
-"$bin" -startup-time "$@" 2>"$log" &
+# A cache of its own, so each run starts as a first launch does and a
+# developer's real cache is neither used nor touched. And no network: the
+# proxy named is a port nothing listens on, so the card fetch a fixture's
+# draft starts fails at once, as offline, and never reaches Scryfall from CI
+# (tests never touch the real services). The screenshot then shows the
+# offline message, and the idle check covers the card task waiting to retry.
+# Mesa keeps its shader cache under XDG_CACHE_HOME too; it is pointed back at
+# its usual place, so moving the app's cache does not make every run pay a
+# cold shader cache.
+cache=$(mktemp -d)
+MESA_SHADER_CACHE_DIR=${MESA_SHADER_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}} \
+XDG_CACHE_HOME=$cache HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 NO_PROXY= \
+	"$bin" -startup-time "$@" 2>"$log" &
 pid=$!
-trap 'kill "$pid" 2>/dev/null || true; rm -f "$log"' EXIT
+trap 'kill "$pid" 2>/dev/null || true; rm -f "$log"; rm -rf "$cache"' EXIT
 show_log() { sed 's/^/  app: /' "$log" >&2; }
 
 cpu_ticks() { awk '{ print $14 + $15 }' "/proc/$pid/stat"; }

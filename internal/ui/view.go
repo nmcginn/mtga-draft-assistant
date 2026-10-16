@@ -33,9 +33,10 @@ func mainView(w *gui.Window) gui.View {
 	return statusView(s.model.Status(), s.theme)
 }
 
-// draftView is the draft: its name and position, the pack one card a line,
-// and the picks so far under it. It scrolls, since a full pack and three
-// packs of picks are taller than the window.
+// draftView is the draft: its name and position, the pack card by card (its
+// name, and under it its cost, type and rarity), and the picks so far under
+// it. It scrolls, since a full pack and three packs of picks are taller than
+// the window.
 func draftView(d app.DraftScreen, t Theme) gui.View {
 	text := func(id, s string, style gui.TextStyle) gui.View {
 		return gui.Text(gui.TextCfg{ID: id, Text: s, TextStyle: style, Mode: gui.TextModeWrap})
@@ -44,11 +45,24 @@ func draftView(d app.DraftScreen, t Theme) gui.View {
 	if d.Position != "" {
 		content = append(content, text("draft-position", d.Position, t.label()))
 	}
+	if d.Notice != "" {
+		content = append(content, text("draft-notice", d.Notice, t.label()))
+	}
 
 	pack := make([]gui.View, 0, len(d.Cards)+1)
 	pack = append(pack, text("draft-heading", d.Heading, t.label()))
 	for i, c := range d.Cards {
-		pack = append(pack, text(fmt.Sprintf("draft-card-%d", i), c, t.body()))
+		id := fmt.Sprintf("draft-card-%d", i)
+		card := []gui.View{text(id, c.Name, t.body())}
+		if c.Detail != "" {
+			card = append(card, text(id+"-detail", c.Detail, t.note()))
+		}
+		pack = append(pack, gui.Column(gui.ContainerCfg{
+			ID:      id + "-box",
+			Sizing:  gui.FillFit,
+			Padding: gui.NewPadding(0, 0, 0, 0),
+			Content: card,
+		}))
 	}
 	content = append(content, section("draft-pack", pack))
 

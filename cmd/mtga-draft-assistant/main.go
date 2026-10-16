@@ -6,10 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 
 	"github.com/nmcginn/mtga-draft-assistant/internal/background"
+	"github.com/nmcginn/mtga-draft-assistant/internal/fetch"
+	"github.com/nmcginn/mtga-draft-assistant/internal/fetch/scryfall"
 	"github.com/nmcginn/mtga-draft-assistant/internal/startup"
 	"github.com/nmcginn/mtga-draft-assistant/internal/ui"
 	"github.com/nmcginn/mtga-draft-assistant/internal/version"
@@ -33,18 +36,32 @@ func main() {
 		os.Exit(2)
 	}
 
+	// Everything the assistant writes lives here, and can be deleted at any
+	// time (decision 16). Without one, cards are fetched each launch.
+	cacheDir, cacheErr := os.UserCacheDir()
+	if cacheErr == nil {
+		cacheDir = filepath.Join(cacheDir, version.Name)
+	}
+	client := fetch.New(fetch.Options{
+		UserAgent: version.UserAgent(),
+		Limits:    map[string]time.Duration{scryfall.Host: scryfall.Interval},
+	})
+	cards := background.NewCards(background.CardSetup{
+		Dir: cacheDir, DirErr: cacheErr, Source: scryfall.Source{Client: client},
+	})
+
 	// A failed lookup leaves home empty, and the search skips the places
 	// under it; the window then says where it did look.
 	home, _ := os.UserHomeDir()
 	model, start, err := background.FindLog(background.LogSetup{
-		Flag: *logPath, GOOS: runtime.GOOS, Home: home, Getenv: os.Getenv,
+		Flag: *logPath, GOOS: runtime.GOOS, Home: home, Getenv: os.Getenv, WantSet: cards.Want,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
 
-	opts := ui.Options{Start: start}
+	opts := ui.Options{Start: background.All(cards.Start, start)}
 	if *startupTime {
 		timeline := startup.New(mainAt)
 		opts.Startup = &timeline

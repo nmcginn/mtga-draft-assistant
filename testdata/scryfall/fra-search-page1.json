@@ -1,0 +1,119 @@
+{
+  "object": "list",
+  "total_cards": 14,
+  "has_more": true,
+  "next_page": "https://api.scryfall.com/cards/search?format=json&include_extras=false&include_multilingual=false&include_variations=false&order=set&page=2&q=e%3Afra+game%3Aarena&unique=prints",
+  "data": [
+    {
+      "object": "card",
+      "id": "00000000-0000-4000-8000-000000106235",
+      "arena_id": 106235,
+      "lang": "en",
+      "name": "Thornwood Scout",
+      "layout": "normal",
+      "mana_cost": "{G}",
+      "type_line": "Creature — Elf Scout",
+      "rarity": "common",
+      "set": "fra",
+      "set_name": "Fixture Set",
+      "collector_number": "1",
+      "games": [
+        "paper",
+        "arena",
+        "mtgo"
+      ]
+    },
+    {
+      "object": "card",
+      "id": "00000000-0000-4000-8000-000000106268",
+      "arena_id": 106268,
+      "lang": "en",
+      "name": "Ashen Courier",
+      "layout": "normal",
+      "mana_cost": "{1}{B}",
+      "type_line": "Creature — Human Rogue",
+      "rarity": "common",
+      "set": "fra",
+      "set_name": "Fixture Set",
+      "collector_number": "2",
+      "games": [
+        "paper",
+        "arena",
+        "mtgo"
+      ]
+    },
+    {
+      "object": "card",
+      "id": "00000000-0000-4000-8000-000000000001",
+      "lang": "en",
+      "name": "Paper-Only Promo",
+      "layout": "normal",
+      "mana_cost": "{3}",
+      "type_line": "Artifact",
+      "rarity": "rare",
+      "set": "fra",
+      "set_name": "Fixture Set",
+      "collector_number": "301",
+      "games": [
+        "paper"
+      ]
+    },
+    {
+      "object": "card",
+      "id": "00000000-0000-4000-8000-000000106321",
+      "arena_id": 106321,
+      "lang": "en",
+      "name": "Gale Lantern",
+      "layout": "normal",
+      "mana_cost": "{2}",
+      "type_line": "Artifact",
+      "rarity": "uncommon",
+      "set": "fra",
+      "set_name": "Fixture Set",
+      "collector_number": "3",
+      "games": [
+        "paper",
+        "arena",
+        "mtgo"
+      ]
+    },
+    {
+      "object": "card",
+      "id": "00000000-0000-4000-8000-000000106325",
+      "arena_id": 106325,
+      "lang": "en",
+      "name": "Verdant Oathkeeper",
+      "layout": "normal",
+      "mana_cost": "{2}{G}{G}",
+      "type_line": "Creature — Elf Druid",
+      "rarity": "uncommon",
+      "set": "fra",
+      "set_name": "Fixture Set",
+      "collector_number": "4",
+      "games": [
+        "paper",
+        "arena",
+        "mtgo"
+      ]
+    },
+    {
+      "object": "card",
+      "id": "00000000-0000-4000-8000-000000106335",
+      "arena_id": 106335,
+      "lang": "en",
+      "name": "Ember Litany",
+      "layout": "normal",
+      "mana_cost": "{X}{R}",
+      "type_line": "Sorcery",
+      "rarity": "rare",
+      "set": "fra",
+      "set_name": "Fixture Set",
+      "collector_number": "5",
+      "games": [
+        "paper",
+        "arena",
+        "mtgo"
+      ]
+    }
+  ]
+}
