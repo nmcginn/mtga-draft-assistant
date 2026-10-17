@@ -41,9 +41,12 @@ type DraftScreen struct {
 // type, and rarity. A card with no details is named by its Arena id, and its
 // Detail says why when the reason is the card's own (Scryfall does not have
 // it yet); when it is the whole set's, the screen's Notice says so once.
+// Image is the card's picture on disk, once it is there; until then the
+// card is shown by its name and details.
 type CardLine struct {
 	Name   string
 	Detail string
+	Image  string
 }
 
 // ShowsDraft reports whether the window shows the draft (DraftScreen) rather
@@ -92,6 +95,7 @@ func (m Model) DraftScreen() DraftScreen {
 			s.Cards = make([]CardLine, len(d.Cards))
 			for i, c := range d.Cards {
 				s.Cards[i] = m.cardLine(d.Set, c)
+				s.Cards[i].Image = m.Images[c].Path
 			}
 			shown = append(shown, d.Cards...)
 		}
@@ -104,14 +108,19 @@ func (m Model) DraftScreen() DraftScreen {
 		}
 	}
 	s.Notice = m.cardsNotice(d.Set, shown)
+	if s.Notice == "" {
+		s.Notice = m.imagesNotice(m.ImagesShown())
+	}
 
 	switch {
 	case !m.CaughtUp:
 		// The pack on screen may be one from earlier in the session that
 		// the log has not got past yet.
 		s.Footnote = "Catching up on Arena's log; the pack shown may not be the latest yet."
-	case m.CacheProblem != "":
+	case m.CacheProblem != "" || m.ImageProblem != "":
 		s.Footnote = m.cacheNote()
+	case slices.ContainsFunc(s.Cards, func(c CardLine) bool { return c.Image != "" }):
+		s.Footnote = "Card details and images from Scryfall."
 	case len(m.CardSets[d.Set].Cards) > 0:
 		s.Footnote = "Card details from Scryfall."
 	}

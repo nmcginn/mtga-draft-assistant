@@ -120,6 +120,11 @@ a `Source` interface so another provider can be added later. The UI always says
 which source a number came from. *(to confirm: 17lands' current endpoints,
 response fields, and terms of use, before the first fetch ships)*
 
+*Not yet confirmed:* the nightly session of 2026-10-17 could not reach
+`17lands.com` and found no published terms, so the ratings task waits on
+the maintainer (a **needs human** item in the roadmap). Card images, the
+next task, went ahead instead.
+
 ### 14. The log is followed by polling, not file-system events
 
 `Player.log` is read from the last offset on a short poll (a `stat` and, only if
@@ -292,3 +297,35 @@ with no details is "Card 106325": with "Not on Scryfall yet" under it when its
 set is known and it is not in it, or one notice above the pack when the
 whole set is still coming, could not be fetched, or was never named by the
 log. Scryfall is credited under the draft.
+
+### 27. Card images: the pack's pictures, kept on disk by last use
+
+Scryfall's card objects give each print's `normal` picture in `image_uris`
+(a double-faced card's front face, when the card has none of its own), and
+only an `https` address on `cards.scryfall.io` is kept: anything else is
+dropped when the card is read, since pictures are fetched without the user
+asking. The address is stored with the card; sets stored before it are
+marked stale, so the next draft of one fetches it again for its pictures.
+The window tells the image task, after every message it applies, which
+cards it shows with a picture: the pack, while it waits for a pick, all of
+it rather than only what is scrolled into view, since the pick needs the
+whole pack. Picks and the pool stay text. Four workers fetch at most four
+pictures at once, through the app's client at one request per 100 ms to
+`cards.scryfall.io` (Scryfall does not rate limit it; this is ours). A
+picture is checked to decode whole before it is written, written to a
+temporary file and renamed into place, and decoded again when first read
+each launch, so a corrupt file is deleted and fetched again. Files are
+named by a hash of the address, which changes when Scryfall replaces a
+picture. The folder (`images/` in the cache) is capped at 200 MB; the last
+use of each picture is its file's modification time, so least-recently-used
+eviction keeps its order across restarts, and the cap is applied on
+opening too. Pictures on screen are never evicted, even if that leaves the
+folder over the cap. An evicted picture, or one whose file was deleted
+while the assistant ran, is posted back, so the window never holds a path
+that is gone, and fetched again when next shown. A failed picture is
+retried after 30 s, doubling to 5 min, however often the window asks; a
+folder that cannot be written is said once and tried again on the same
+schedule, so fixing it needs no restart. Until its picture is on disk, a
+card is a tile of the same size with its name, cost, type and rarity, and
+a failed download is explained above the pack. The JPEG and PNG decoders
+cost nothing: go-gui's backends link them already (the binary grew 0.1 MiB).

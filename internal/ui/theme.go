@@ -10,6 +10,7 @@ type Theme struct {
 	Text       gui.Color // primary text: card names, headlines
 	TextMuted  gui.Color // secondary text: hints, counts, sources
 	Subtle     gui.Color // quiet structure: the scrollbar thumb
+	Surface    gui.Color // a card waiting for its picture
 
 	HeadlineSize float32
 	BodySize     float32
@@ -23,6 +24,7 @@ var Dark = Theme{
 	Text:       gui.Hex(0xe8e6e3),
 	TextMuted:  gui.Hex(0x9a9ea6),
 	Subtle:     gui.Hex(0x3a3e47),
+	Surface:    gui.Hex(0x23262d),
 
 	HeadlineSize: 22,
 	BodySize:     14,

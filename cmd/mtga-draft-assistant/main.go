@@ -44,10 +44,14 @@ func main() {
 	}
 	client := fetch.New(fetch.Options{
 		UserAgent: version.UserAgent(),
-		Limits:    map[string]time.Duration{scryfall.Host: scryfall.Interval},
+		Limits:    map[string]time.Duration{scryfall.Host: scryfall.Interval, scryfall.ImageHost: scryfall.ImageInterval},
 	})
 	cards := background.NewCards(background.CardSetup{
 		Dir: cacheDir, DirErr: cacheErr, Source: scryfall.Source{Client: client},
+	})
+
+	pictures := background.NewImages(background.ImageSetup{
+		Dir: cacheDir, DirErr: cacheErr, Source: scryfall.Images{Client: client},
 	})
 
 	// A failed lookup leaves home empty, and the search skips the places
@@ -61,7 +65,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	opts := ui.Options{Start: background.All(cards.Start, start)}
+	opts := ui.Options{Start: background.All(cards.Start, pictures.Start, start), ShowImages: pictures.Want}
 	if *startupTime {
 		timeline := startup.New(mainAt)
 		opts.Startup = &timeline

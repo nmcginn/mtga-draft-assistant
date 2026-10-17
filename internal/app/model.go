@@ -64,6 +64,13 @@ type Model struct {
 	// they cannot; empty when the cache works.
 	CacheProblem string
 	CacheDir     string
+	// Images is what is known of each card's picture, by Arena id. A card
+	// not in it has not been asked for, or is on its way.
+	Images map[int]CardImage
+	// ImageProblem is why pictures cannot be kept in ImageDir, while they
+	// cannot; empty when they can.
+	ImageProblem string
+	ImageDir     string
 	// Failure is the first background task that stopped unexpectedly, or
 	// nil. It is kept until restart: the task is not running any more, so
 	// whatever it would have shown never will.
@@ -212,6 +219,8 @@ func (m Model) Apply(msg Msg) Model {
 		m.Given = msg.Given
 	case CardsFetching, CardsLoaded, CardsFailed, CacheUnavailable:
 		return m.applyCards(msg)
+	case ImageReady, ImageFailed, ImagesEvicted, ImageCacheUnavailable:
+		return m.applyImages(msg)
 	case TaskFailed:
 		if m.Failure != nil {
 			// The first failure is the one most likely to explain the rest.

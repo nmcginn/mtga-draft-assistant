@@ -108,7 +108,8 @@ func TestASetIsFetchedAcrossItsPagesByArenaID(t *testing.T) {
 	if len(m) != 13 || len(got) != 13 {
 		t.Errorf("got %d cards (%d ids), want the 13 with Arena ids", len(got), len(m))
 	}
-	want := cards.Card{ArenaID: 106325, Set: "FRA", Name: "Verdant Oathkeeper", ManaCost: "{2}{G}{G}", TypeLine: "Creature — Elf Druid", Rarity: "uncommon"}
+	want := cards.Card{ArenaID: 106325, Set: "FRA", Name: "Verdant Oathkeeper", ManaCost: "{2}{G}{G}", TypeLine: "Creature — Elf Druid", Rarity: "uncommon",
+		ImageURL: "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106325.jpg?1759190400"}
 	if m[106325] != want {
 		t.Errorf("106325 = %+v, want %+v", m[106325], want)
 	}
@@ -149,6 +150,75 @@ func TestATwoFacedCardTakesItsCostFromItsFaces(t *testing.T) {
 	c := byID(got)[106444]
 	if c.Name != "Lanternwatch Recruit // Lanternwatch Captain" || c.ManaCost != "{1}{W}" || c.TypeLine != "Creature — Human Soldier // Creature — Human Soldier" {
 		t.Errorf("the transforming card is %+v", c)
+	}
+}
+
+func TestATwoFacedCardIsPicturedByItsFront(t *testing.T) {
+	got, err := newServer(t, nil).source().Set(t.Context(), "FRA")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106444.jpg?1759190400"
+	if c := byID(got)[106444]; c.ImageURL != want {
+		t.Errorf("the transforming card's picture is %q, want its front face's %q", c.ImageURL, want)
+	}
+}
+
+func TestOnlyAPictureOnScryfallsImageHostIsKept(t *testing.T) {
+	// An image is fetched without the user asking, so a page naming some
+	// other address must not make the assistant go there.
+	srv := newServer(t, func(w http.ResponseWriter, _ *http.Request, _ int) bool {
+		_, _ = w.Write([]byte(`{"object":"list","has_more":false,"data":[
+			{"arena_id":1,"name":"Kept","image_uris":{"normal":"https://cards.scryfall.io/normal/front/a/b/1.jpg?1"}},
+			{"arena_id":2,"name":"Elsewhere","image_uris":{"normal":"https://tracker.example/normal/2.jpg"}},
+			{"arena_id":3,"name":"Plain HTTP","image_uris":{"normal":"http://cards.scryfall.io/normal/front/a/b/3.jpg"}},
+			{"arena_id":4,"name":"Not an address","image_uris":{"normal":"::"}},
+			{"arena_id":5,"name":"No picture"}
+		]}`))
+		return true
+	})
+	got, err := srv.source().Set(t.Context(), "FRA")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := byID(got)
+	if m[1].ImageURL != "https://cards.scryfall.io/normal/front/a/b/1.jpg?1" {
+		t.Errorf("the picture on Scryfall's host was dropped: %+v", m[1])
+	}
+	for _, id := range []int{2, 3, 4, 5} {
+		if c, ok := m[id]; !ok || c.ImageURL != "" {
+			t.Errorf("card %d = %+v (found %v), want it kept with no picture", id, c, ok)
+		}
+	}
+}
+
+func TestAnImageIsDownloadedNamedAndCapped(t *testing.T) {
+	var ua string
+	srv := newServer(t, func(w http.ResponseWriter, r *http.Request, _ int) bool {
+		ua = r.Header.Get("User-Agent")
+		switch r.URL.Path {
+		case "/normal/front/a/b/1.jpg":
+			_, _ = w.Write([]byte("jpeg bytes"))
+		case "/huge.jpg":
+			_, _ = w.Write(make([]byte, maxImageBytes+1))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+		return true
+	})
+	imgs := Images{Client: srv.source().Client}
+	got, err := imgs.Image(t.Context(), srv.URL+"/normal/front/a/b/1.jpg")
+	if err != nil || string(got) != "jpeg bytes" {
+		t.Errorf("Image = %q, %v", got, err)
+	}
+	if ua == "" {
+		t.Error("the image was asked for without naming the app")
+	}
+	if _, err := imgs.Image(t.Context(), srv.URL+"/huge.jpg"); err == nil {
+		t.Error("an image larger than any card picture was accepted")
+	}
+	if _, err := imgs.Image(t.Context(), srv.URL+"/gone.jpg"); !fetch.IsStatus(err, http.StatusNotFound) {
+		t.Errorf("a missing image returned %v, want the 404", err)
 	}
 }
 

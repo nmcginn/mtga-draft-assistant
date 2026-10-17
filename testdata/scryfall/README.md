@@ -14,7 +14,10 @@ What the tests lean on:
   `unique=prints`, in two pages joined by `next_page`. Page 1 holds a print
   with no `arena_id` (paper only); page 2 a transforming card whose mana cost
   is on its faces only. Arena id 106439, in the fixture's first pack, is in
-  neither: it stands for a card Scryfall does not know yet.
+  neither: it stands for a card Scryfall does not know yet. Every card has
+  `image_uris` on `cards.scryfall.io`, the transforming card on each face
+  only, as Scryfall documents for such layouts; the image addresses'
+  timestamps are invented.
 - `search-not-found.json`: what Scryfall answers, with a 404, to a search
   that matches nothing, which is what a set it has never heard of gets.
 
@@ -33,4 +36,5 @@ curl -sS -H 'User-Agent: mtga-draft-assistant/dev (+https://github.com/nmcginn/m
 
 then trim `data` to the cards the tests name, keeping every field of each card
 the client reads (`arena_id`, `name`, `mana_cost`, `type_line`, `rarity`,
-`card_faces`) and the list's own fields, and note the date captured here.
+`image_uris`, and `card_faces` with their own `image_uris`) and the list's
+own fields, and note the date captured here.

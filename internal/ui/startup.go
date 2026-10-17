@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-gui-org/go-gui/gui"
 
+	"github.com/nmcginn/mtga-draft-assistant/internal/app"
 	"github.com/nmcginn/mtga-draft-assistant/internal/background"
 	"github.com/nmcginn/mtga-draft-assistant/internal/startup"
 )
@@ -22,6 +23,10 @@ type Options struct {
 	// Start launches the background tasks once the window exists, with a
 	// context that ends when the window closes. Nil starts nothing.
 	Start background.Start
+
+	// ShowImages is told which pictures are on screen each time that may
+	// have changed: the image task's Want. Nil fetches none.
+	ShowImages func([]app.ImageWant)
 
 	// now is the clock, swapped for a fake in tests.
 	now func() time.Time

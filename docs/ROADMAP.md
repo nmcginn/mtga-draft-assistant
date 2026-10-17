@@ -53,7 +53,9 @@ by rating, with card images, before the pick timer matters. macOS and Linux
     `testdata/scryfall/`, which were written to Scryfall's documented schema
     because the session that built the client could not reach it. The
     command and what to keep are in `testdata/scryfall/README.md`. The tests
-    name the cards they expect, so those names change with the pages.
+    name the cards they expect, so those names change with the pages. Card
+    images (decision 27) were built on the same written pages, so a
+    recording also confirms where Scryfall puts a card's picture.
 
 - [ ] **Parse the remaining draft formats.** *Each blocked on its fixture.*
   Whichever of these the parsing task did not already cover, one PR per
@@ -65,36 +67,35 @@ by rating, with card images, before the pick timer matters. macOS and Linux
   - [x] Quick Draft (bot draft)
   - [ ] Traditional Draft
 
-- [ ] **Ratings from 17lands, and the pack ranked by them.**
-  - First confirm 17lands' current endpoints, response fields, and terms, and
-    record them in decision 13. If the terms are unclear, stop and mark this
-    task **needs human**.
+- [ ] **Ratings from 17lands, and the pack ranked by them.** *Blocked on
+  the next item.*
   - Fetch ratings for the draft's set and format, store them, and refresh at
     most once a day.
   - The pack is sorted by rating, best first, with the number and what it is
     (for example, "GIH WR 58.2%"), and the sample size where it is small enough
-    to matter. Cards with no rating sort last and say "no data yet".
+    to matter. Cards with no rating sort last and say "no data yet". The
+    rating is on each card in the pack's grid: on its picture, and on its
+    placeholder while the picture is coming.
   - 17lands is credited in the window.
   - Tests: ranking with ties and missing ratings; a stale rating is refreshed
     once; offline uses what is stored.
 
-- [ ] **Card images, cached and capped.**
-  - The image store (decision 12): downloads Scryfall `normal` images through the
-    app's client, at most 4 at once, into the cache dir; 200 MB cap with LRU
-    eviction; hands go-gui local paths only.
-  - The pack shows card images in a grid that reflows with the window width,
-    with each card's rating on it. A placeholder with the card's name shows
-    until the image arrives.
-  - Only cards on screen are fetched.
-  - Tests: eviction order; the cap holds across restarts; a failed download
-    retries later, not every frame; a corrupt file is replaced.
+- [ ] **Needs human: confirm 17lands' endpoints and terms of use.** Decision
+  13 asks for them before the first fetch ships. The nightly session of
+  2026-10-17 could not reach `17lands.com` (its network policy refuses the
+  host) and found no published terms by web search, so it could confirm
+  neither. Needed: the endpoint and fields that give a set and format's
+  card ratings (a recorded response for `testdata/`, as with Scryfall), and
+  whether 17lands allows a desktop tool to fetch them once a day per set,
+  with credit. Record both in decision 13.
 
 - [ ] **The picks-so-far panel.**
   - Colour counts, a mana curve, and creature/non-creature split of the picks,
     beside or under the pack depending on window width.
   - Pure summary functions, tested on their own.
 
-- [ ] **Letter grades from a 17lands tier list.**
+- [ ] **Letter grades from a 17lands tier list.** *Blocked on 17lands'
+  terms, as above.*
   - The user pastes a 17lands tier list link; it is validated, stored in a small
     settings file under `os.UserConfigDir()`, and fetched at most once a day.
   - Each card shows its grade beside its stats, labelled with the list's name.
@@ -177,3 +178,8 @@ Each needs a decision from the maintainer before it becomes a task.
   SQLite store, a set fetched once by paged search and refreshed weekly, the
   pack, picks and pool by name with cost, type and rarity, and loading,
   offline and unusable-cache states that say what to do. (11, 15, 25, 26)
+- [x] Card images, cached and capped: Scryfall's `normal` picture for each
+  card in the pack, at most 4 at once, kept under a 200 MB cap with
+  least-recently-used eviction that holds across restarts; a grid that
+  reflows with the window, a placeholder with the card's name meanwhile,
+  failures retried on their own schedule, and corrupt files replaced. (12, 27)

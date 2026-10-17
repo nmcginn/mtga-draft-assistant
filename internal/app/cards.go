@@ -209,17 +209,32 @@ func plural(n int, unit string) string {
 }
 
 // cacheNote is the footnote while the cache cannot be used: what that costs,
-// and what to do.
+// and what to do. Card details and pictures are kept in the same folder, so
+// when neither can be, it says so once.
 func (m Model) cacheNote() string {
-	if m.CacheProblem == "" {
+	if m.CacheProblem == "" && m.ImageProblem == "" {
 		return ""
 	}
-	where := "the cache folder"
-	if m.CacheDir != "" {
-		where = m.CacheDir
+	where := func(dir string) string {
+		if dir == "" {
+			return "the cache folder"
+		}
+		return dir
+	}
+	var said string
+	switch {
+	case m.ImageProblem == "":
+		said = fmt.Sprintf("Card details can't be saved in %s (%s), so they are fetched from Scryfall again each time the assistant starts.",
+			where(m.CacheDir), m.CacheProblem)
+	case m.CacheProblem == "":
+		said = fmt.Sprintf("Card images can't be saved in %s (%s), so cards show by name; the assistant keeps trying.",
+			where(m.ImageDir), m.ImageProblem)
+	default:
+		said = fmt.Sprintf("Card details and images can't be saved in %s (%s), so details are fetched from Scryfall again each time the assistant starts, and cards show by name.",
+			where(m.CacheDir), m.CacheProblem)
 	}
 	return strings.Join([]string{
-		fmt.Sprintf("Card details can't be saved in %s (%s), so they are fetched from Scryfall again each time the assistant starts.", where, m.CacheProblem),
+		said,
 		"Check that your user account can write to that folder, or delete it to start it afresh: it only holds what can be fetched again.",
 	}, " ")
 }

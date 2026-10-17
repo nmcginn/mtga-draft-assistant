@@ -140,10 +140,18 @@ type card struct {
 	ManaCost string `json:"mana_cost"`
 	TypeLine string `json:"type_line"`
 	Rarity   string `json:"rarity"`
+	Images   images `json:"image_uris"`
 	Faces    []struct {
 		ManaCost string `json:"mana_cost"`
 		TypeLine string `json:"type_line"`
+		Images   images `json:"image_uris"`
 	} `json:"card_faces"`
+}
+
+// images is the field read of a card's or a face's image_uris: the size the
+// window shows (decision 12).
+type images struct {
+	Normal string `json:"normal"`
 }
 
 // card is c as the assistant keeps it, and false for a print Arena does
@@ -159,6 +167,12 @@ func (c card) card(set string) (cards.Card, bool) {
 		ManaCost: c.ManaCost,
 		TypeLine: c.TypeLine,
 		Rarity:   c.Rarity,
+		ImageURL: imageURL(c.Images.Normal),
+	}
+	// A card with two faces printed on two sides has a picture of each
+	// and none of its own; its front is what Arena shows in a pack.
+	if out.ImageURL == "" && len(c.Faces) > 0 {
+		out.ImageURL = imageURL(c.Faces[0].Images.Normal)
 	}
 	// A card with two faces may carry its cost and type only on them:
 	// they are joined as Scryfall joins the names, "1W // 3W".
@@ -169,6 +183,26 @@ func (c card) card(set string) (cards.Card, bool) {
 		out.TypeLine = faces(c, func(f int) string { return c.Faces[f].TypeLine })
 	}
 	return out, true
+}
+
+// ImageHost is where Scryfall keeps its card images. Its files are not
+// rate limited by Scryfall; ImageInterval is ours, so a pack's images
+// arrive within a couple of seconds without bursting at the host.
+const (
+	ImageHost     = "cards.scryfall.io"
+	ImageInterval = 100 * time.Millisecond
+)
+
+// imageURL is u when it is a picture on Scryfall's image host, and "" when
+// it is anything else. A page could name any address, and an image is
+// fetched without the user asking, so only the host the budget lists
+// (docs/ARCHITECTURE.md) is ever asked.
+func imageURL(u string) string {
+	parsed, err := url.Parse(u)
+	if err != nil || parsed.Scheme != "https" || parsed.Host != ImageHost {
+		return ""
+	}
+	return u
 }
 
 // faces is field of each of c's faces that has one, joined with " // ".

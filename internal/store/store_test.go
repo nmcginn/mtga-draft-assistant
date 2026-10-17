@@ -14,8 +14,9 @@ import (
 
 var (
 	fetched = time.Date(2026, 10, 16, 3, 0, 0, 0, time.UTC)
-	elf     = cards.Card{ArenaID: 106325, Set: "FRA", Name: "Verdant Oathkeeper", ManaCost: "{2}{G}{G}", TypeLine: "Creature — Elf Druid", Rarity: "uncommon"}
-	forest  = cards.Card{ArenaID: 106485, Set: "FRA", Name: "Forest", TypeLine: "Basic Land — Forest", Rarity: "common"}
+	elf     = cards.Card{ArenaID: 106325, Set: "FRA", Name: "Verdant Oathkeeper", ManaCost: "{2}{G}{G}", TypeLine: "Creature — Elf Druid", Rarity: "uncommon",
+		ImageURL: "https://cards.scryfall.io/normal/front/0/0/106325.jpg?1759190400"}
+	forest = cards.Card{ArenaID: 106485, Set: "FRA", Name: "Forest", TypeLine: "Basic Land — Forest", Rarity: "common"}
 )
 
 func open(t *testing.T, dir string) *Store {
@@ -224,5 +225,40 @@ func TestTheConnectionWaitsForAnotherCopyOfTheAssistantRatherThanFailing(t *test
 	}
 	if timeout != 5000 || fk != 1 {
 		t.Errorf("busy_timeout = %d, foreign_keys = %d; want 5000 and 1", timeout, fk)
+	}
+}
+
+func TestACacheFromBeforePicturesKeepsItsCardsAndIsFetchedAgainForThem(t *testing.T) {
+	// A cache written by the version before card images: its sets have
+	// no pictures, and would go without until the weekly refresh unless
+	// the upgrade marks them as due.
+	dir := t.TempDir()
+	db, err := sql.Open("sqlite", dsn(filepath.Join(dir, FileName)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		migrations[0],
+		"PRAGMA user_version = 1",
+		"INSERT INTO sets (code, fetched_at) VALUES ('FRA', 1760583600)",
+		"INSERT INTO cards (arena_id, set_code, name, mana_cost, type_line, rarity) VALUES (106485, 'FRA', 'Forest', '', 'Basic Land — Forest', 'common')",
+	} {
+		if _, err := db.ExecContext(t.Context(), q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	got, ok, err := open(t, dir).Set(t.Context(), "FRA")
+	if err != nil || !ok {
+		t.Fatalf("Set = %v, %v", ok, err)
+	}
+	if len(got.Cards) != 1 || got.Cards[0] != forest {
+		t.Errorf("the upgraded cache holds %+v, want the Forest as it was, with no picture", got.Cards)
+	}
+	if !got.FetchedAt.Equal(time.Unix(0, 0)) {
+		t.Errorf("the upgraded set was fetched at %v, want it marked as due for fetching again", got.FetchedAt)
 	}
 }
