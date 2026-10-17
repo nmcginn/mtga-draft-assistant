@@ -19,6 +19,9 @@ type Card struct {
 	ManaCost string
 	TypeLine string
 	Rarity   string
+	// ImageURL is where the card's picture is, at the size the window
+	// shows (decision 12); empty when the source has none for it.
+	ImageURL string
 }
 
 // Detail is the line under a card's name: its mana cost, type, and rarity,

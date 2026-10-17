@@ -15,6 +15,9 @@ import (
 type state struct {
 	model app.Model
 	theme Theme
+	// showImages is told, after every message, which pictures are on
+	// screen: the image task's Want in the app. Nil in most tests.
+	showImages func([]app.ImageWant)
 }
 
 // newState is the state the first frame paints: no I/O has happened yet.
@@ -33,10 +36,19 @@ func mainView(w *gui.Window) gui.View {
 	return statusView(s.model.Status(), s.theme)
 }
 
-// draftView is the draft: its name and position, the pack card by card (its
-// name, and under it its cost, type and rarity), and the picks so far under
-// it. It scrolls, since a full pack and three packs of picks are taller than
-// the window.
+// A card's picture is 488×680 (decision 12); a tile shows it at this size,
+// two abreast in the window's default width, more as it widens, one when
+// it is narrowed to its minimum.
+const (
+	cardWidth  = 176
+	cardHeight = 245
+)
+
+// draftView is the draft: its name and position, the pack as a grid of
+// cards that reflows with the window's width, and the picks so far under
+// it. Each card is its picture once that is on disk, and until then a
+// tile with its name, cost, type and rarity. It scrolls, since a full pack
+// and three packs of picks are taller than the window.
 func draftView(d app.DraftScreen, t Theme) gui.View {
 	text := func(id, s string, style gui.TextStyle) gui.View {
 		return gui.Text(gui.TextCfg{ID: id, Text: s, TextStyle: style, Mode: gui.TextModeWrap})
@@ -49,19 +61,19 @@ func draftView(d app.DraftScreen, t Theme) gui.View {
 		content = append(content, text("draft-notice", d.Notice, t.label()))
 	}
 
-	pack := make([]gui.View, 0, len(d.Cards)+1)
-	pack = append(pack, text("draft-heading", d.Heading, t.label()))
-	for i, c := range d.Cards {
-		id := fmt.Sprintf("draft-card-%d", i)
-		card := []gui.View{text(id, c.Name, t.body())}
-		if c.Detail != "" {
-			card = append(card, text(id+"-detail", c.Detail, t.note()))
+	pack := []gui.View{text("draft-heading", d.Heading, t.label())}
+	if len(d.Cards) > 0 {
+		tiles := make([]gui.View, len(d.Cards))
+		for i, c := range d.Cards {
+			tiles[i] = cardTile(fmt.Sprintf("draft-card-%d", i), c, t)
 		}
-		pack = append(pack, gui.Column(gui.ContainerCfg{
-			ID:      id + "-box",
+		pack = append(pack, gui.Row(gui.ContainerCfg{
+			ID:      "draft-grid",
 			Sizing:  gui.FillFit,
+			Wrap:    true,
+			Spacing: gui.SpacingSmall,
 			Padding: gui.NewPadding(0, 0, 0, 0),
-			Content: card,
+			Content: tiles,
 		}))
 	}
 	content = append(content, section("draft-pack", pack))
@@ -86,6 +98,44 @@ func draftView(d app.DraftScreen, t Theme) gui.View {
 		Spacing:       gui.SpacingMedium,
 		Padding:       gui.NewPadding(16, 20, 16, 20),
 		Content:       content,
+	})
+}
+
+// cardTile is one card in the pack, at a card's size: its picture, which
+// carries its name for a screen reader, or a placeholder that names it.
+// Both take the same space, so the grid does not jump as pictures arrive.
+func cardTile(id string, c app.CardLine, t Theme) gui.View {
+	if c.Image != "" {
+		return gui.Column(gui.ContainerCfg{
+			ID:      id + "-box",
+			Sizing:  gui.FixedFixed,
+			Width:   cardWidth,
+			Height:  cardHeight,
+			Padding: gui.NewPadding(0, 0, 0, 0),
+			Content: []gui.View{gui.Image(gui.ImageCfg{
+				ID:      id + "-image",
+				Src:     c.Image,
+				Width:   cardWidth,
+				Height:  cardHeight,
+				A11YCfg: gui.A11YCfg{A11YLabel: c.Name, A11YDescription: c.Detail},
+			})},
+		})
+	}
+	content := []gui.View{gui.Text(gui.TextCfg{ID: id, Text: c.Name, TextStyle: t.body(), Mode: gui.TextModeWrap})}
+	if c.Detail != "" {
+		content = append(content, gui.Text(gui.TextCfg{ID: id + "-detail", Text: c.Detail, TextStyle: t.note(), Mode: gui.TextModeWrap}))
+	}
+	return gui.Column(gui.ContainerCfg{
+		ID:      id + "-box",
+		Sizing:  gui.FixedFixed,
+		Width:   cardWidth,
+		Height:  cardHeight,
+		Color:   t.Surface,
+		Radius:  gui.RadiusMedium,
+		Spacing: gui.SpacingSmall,
+		Padding: gui.NewPadding(10, 10, 10, 10),
+		Clip:    true,
+		Content: content,
 	})
 }
 
@@ -148,6 +198,11 @@ func Post(w *gui.Window, msg app.Msg) {
 	w.QueueCommand(func(w *gui.Window) {
 		s := gui.State[state](w)
 		s.model = s.model.Apply(msg)
+		// The image task learns what is on screen from the state the
+		// window is about to draw; Want returns at once.
+		if s.showImages != nil {
+			s.showImages(s.model.ImagesShown())
+		}
 		w.InvalidateLayout()
 	})
 }

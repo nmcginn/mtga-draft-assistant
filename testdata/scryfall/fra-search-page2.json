@@ -13,6 +13,14 @@
       "mana_cost": "{1}{U}",
       "type_line": "Instant",
       "rarity": "common",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/00000000-0000-4000-8000-000000106385.jpg?1759190400",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106385.jpg?1759190400",
+        "large": "https://cards.scryfall.io/large/front/0/0/00000000-0000-4000-8000-000000106385.jpg?1759190400",
+        "png": "https://cards.scryfall.io/png/front/0/0/00000000-0000-4000-8000-000000106385.png?1759190400",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/00000000-0000-4000-8000-000000106385.jpg?1759190400",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/00000000-0000-4000-8000-000000106385.jpg?1759190400"
+      },
       "set": "fra",
       "set_name": "Fixture Set",
       "collector_number": "10",
@@ -32,6 +40,14 @@
       "mana_cost": "",
       "type_line": "Land",
       "rarity": "uncommon",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/00000000-0000-4000-8000-000000106391.jpg?1759190400",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106391.jpg?1759190400",
+        "large": "https://cards.scryfall.io/large/front/0/0/00000000-0000-4000-8000-000000106391.jpg?1759190400",
+        "png": "https://cards.scryfall.io/png/front/0/0/00000000-0000-4000-8000-000000106391.png?1759190400",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/00000000-0000-4000-8000-000000106391.jpg?1759190400",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/00000000-0000-4000-8000-000000106391.jpg?1759190400"
+      },
       "set": "fra",
       "set_name": "Fixture Set",
       "collector_number": "11",
@@ -51,6 +67,14 @@
       "mana_cost": "{W/B}{W/B}",
       "type_line": "Creature — Human Knight",
       "rarity": "uncommon",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/00000000-0000-4000-8000-000000106407.jpg?1759190400",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106407.jpg?1759190400",
+        "large": "https://cards.scryfall.io/large/front/0/0/00000000-0000-4000-8000-000000106407.jpg?1759190400",
+        "png": "https://cards.scryfall.io/png/front/0/0/00000000-0000-4000-8000-000000106407.png?1759190400",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/00000000-0000-4000-8000-000000106407.jpg?1759190400",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/00000000-0000-4000-8000-000000106407.jpg?1759190400"
+      },
       "set": "fra",
       "set_name": "Fixture Set",
       "collector_number": "12",
@@ -70,6 +94,14 @@
       "mana_cost": "{3}{B}{B}",
       "type_line": "Legendary Creature — Vampire Noble",
       "rarity": "mythic",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/00000000-0000-4000-8000-000000106411.jpg?1759190400",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106411.jpg?1759190400",
+        "large": "https://cards.scryfall.io/large/front/0/0/00000000-0000-4000-8000-000000106411.jpg?1759190400",
+        "png": "https://cards.scryfall.io/png/front/0/0/00000000-0000-4000-8000-000000106411.png?1759190400",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/00000000-0000-4000-8000-000000106411.jpg?1759190400",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/00000000-0000-4000-8000-000000106411.jpg?1759190400"
+      },
       "set": "fra",
       "set_name": "Fixture Set",
       "collector_number": "13",
@@ -101,13 +133,29 @@
           "object": "card_face",
           "name": "Lanternwatch Recruit",
           "mana_cost": "{1}{W}",
-          "type_line": "Creature — Human Soldier"
+          "type_line": "Creature — Human Soldier",
+          "image_uris": {
+            "small": "https://cards.scryfall.io/small/front/0/0/00000000-0000-4000-8000-000000106444.jpg?1759190400",
+            "normal": "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106444.jpg?1759190400",
+            "large": "https://cards.scryfall.io/large/front/0/0/00000000-0000-4000-8000-000000106444.jpg?1759190400",
+            "png": "https://cards.scryfall.io/png/front/0/0/00000000-0000-4000-8000-000000106444.png?1759190400",
+            "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/00000000-0000-4000-8000-000000106444.jpg?1759190400",
+            "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/00000000-0000-4000-8000-000000106444.jpg?1759190400"
+          }
         },
         {
           "object": "card_face",
           "name": "Lanternwatch Captain",
           "mana_cost": "",
-          "type_line": "Creature — Human Soldier"
+          "type_line": "Creature — Human Soldier",
+          "image_uris": {
+            "small": "https://cards.scryfall.io/small/back/0/0/00000000-0000-4000-8000-000000106444.jpg?1759190400",
+            "normal": "https://cards.scryfall.io/normal/back/0/0/00000000-0000-4000-8000-000000106444.jpg?1759190400",
+            "large": "https://cards.scryfall.io/large/back/0/0/00000000-0000-4000-8000-000000106444.jpg?1759190400",
+            "png": "https://cards.scryfall.io/png/back/0/0/00000000-0000-4000-8000-000000106444.png?1759190400",
+            "art_crop": "https://cards.scryfall.io/art_crop/back/0/0/00000000-0000-4000-8000-000000106444.jpg?1759190400",
+            "border_crop": "https://cards.scryfall.io/border_crop/back/0/0/00000000-0000-4000-8000-000000106444.jpg?1759190400"
+          }
         }
       ]
     },
@@ -121,6 +169,14 @@
       "mana_cost": "{1}{G}",
       "type_line": "Creature — Elf Ranger",
       "rarity": "common",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/00000000-0000-4000-8000-000000106453.jpg?1759190400",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106453.jpg?1759190400",
+        "large": "https://cards.scryfall.io/large/front/0/0/00000000-0000-4000-8000-000000106453.jpg?1759190400",
+        "png": "https://cards.scryfall.io/png/front/0/0/00000000-0000-4000-8000-000000106453.png?1759190400",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/00000000-0000-4000-8000-000000106453.jpg?1759190400",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/00000000-0000-4000-8000-000000106453.jpg?1759190400"
+      },
       "set": "fra",
       "set_name": "Fixture Set",
       "collector_number": "15",
@@ -140,6 +196,14 @@
       "mana_cost": "",
       "type_line": "Basic Land — Forest",
       "rarity": "common",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/00000000-0000-4000-8000-000000106485.jpg?1759190400",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106485.jpg?1759190400",
+        "large": "https://cards.scryfall.io/large/front/0/0/00000000-0000-4000-8000-000000106485.jpg?1759190400",
+        "png": "https://cards.scryfall.io/png/front/0/0/00000000-0000-4000-8000-000000106485.png?1759190400",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/00000000-0000-4000-8000-000000106485.jpg?1759190400",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/00000000-0000-4000-8000-000000106485.jpg?1759190400"
+      },
       "set": "fra",
       "set_name": "Fixture Set",
       "collector_number": "16",
@@ -159,6 +223,14 @@
       "mana_cost": "{2}{U}",
       "type_line": "Creature — Merfolk Wizard",
       "rarity": "common",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/00000000-0000-4000-8000-000000106501.jpg?1759190400",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106501.jpg?1759190400",
+        "large": "https://cards.scryfall.io/large/front/0/0/00000000-0000-4000-8000-000000106501.jpg?1759190400",
+        "png": "https://cards.scryfall.io/png/front/0/0/00000000-0000-4000-8000-000000106501.png?1759190400",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/00000000-0000-4000-8000-000000106501.jpg?1759190400",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/00000000-0000-4000-8000-000000106501.jpg?1759190400"
+      },
       "set": "fra",
       "set_name": "Fixture Set",
       "collector_number": "17",

@@ -14,6 +14,14 @@
       "mana_cost": "{G}",
       "type_line": "Creature — Elf Scout",
       "rarity": "common",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/00000000-0000-4000-8000-000000106235.jpg?1759190400",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106235.jpg?1759190400",
+        "large": "https://cards.scryfall.io/large/front/0/0/00000000-0000-4000-8000-000000106235.jpg?1759190400",
+        "png": "https://cards.scryfall.io/png/front/0/0/00000000-0000-4000-8000-000000106235.png?1759190400",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/00000000-0000-4000-8000-000000106235.jpg?1759190400",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/00000000-0000-4000-8000-000000106235.jpg?1759190400"
+      },
       "set": "fra",
       "set_name": "Fixture Set",
       "collector_number": "1",
@@ -33,6 +41,14 @@
       "mana_cost": "{1}{B}",
       "type_line": "Creature — Human Rogue",
       "rarity": "common",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/00000000-0000-4000-8000-000000106268.jpg?1759190400",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106268.jpg?1759190400",
+        "large": "https://cards.scryfall.io/large/front/0/0/00000000-0000-4000-8000-000000106268.jpg?1759190400",
+        "png": "https://cards.scryfall.io/png/front/0/0/00000000-0000-4000-8000-000000106268.png?1759190400",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/00000000-0000-4000-8000-000000106268.jpg?1759190400",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/00000000-0000-4000-8000-000000106268.jpg?1759190400"
+      },
       "set": "fra",
       "set_name": "Fixture Set",
       "collector_number": "2",
@@ -51,6 +67,14 @@
       "mana_cost": "{3}",
       "type_line": "Artifact",
       "rarity": "rare",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/00000000-0000-4000-8000-000000000001.jpg?1759190400",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000000001.jpg?1759190400",
+        "large": "https://cards.scryfall.io/large/front/0/0/00000000-0000-4000-8000-000000000001.jpg?1759190400",
+        "png": "https://cards.scryfall.io/png/front/0/0/00000000-0000-4000-8000-000000000001.png?1759190400",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/00000000-0000-4000-8000-000000000001.jpg?1759190400",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/00000000-0000-4000-8000-000000000001.jpg?1759190400"
+      },
       "set": "fra",
       "set_name": "Fixture Set",
       "collector_number": "301",
@@ -68,6 +92,14 @@
       "mana_cost": "{2}",
       "type_line": "Artifact",
       "rarity": "uncommon",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/00000000-0000-4000-8000-000000106321.jpg?1759190400",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106321.jpg?1759190400",
+        "large": "https://cards.scryfall.io/large/front/0/0/00000000-0000-4000-8000-000000106321.jpg?1759190400",
+        "png": "https://cards.scryfall.io/png/front/0/0/00000000-0000-4000-8000-000000106321.png?1759190400",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/00000000-0000-4000-8000-000000106321.jpg?1759190400",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/00000000-0000-4000-8000-000000106321.jpg?1759190400"
+      },
       "set": "fra",
       "set_name": "Fixture Set",
       "collector_number": "3",
@@ -87,6 +119,14 @@
       "mana_cost": "{2}{G}{G}",
       "type_line": "Creature — Elf Druid",
       "rarity": "uncommon",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/00000000-0000-4000-8000-000000106325.jpg?1759190400",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106325.jpg?1759190400",
+        "large": "https://cards.scryfall.io/large/front/0/0/00000000-0000-4000-8000-000000106325.jpg?1759190400",
+        "png": "https://cards.scryfall.io/png/front/0/0/00000000-0000-4000-8000-000000106325.png?1759190400",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/00000000-0000-4000-8000-000000106325.jpg?1759190400",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/00000000-0000-4000-8000-000000106325.jpg?1759190400"
+      },
       "set": "fra",
       "set_name": "Fixture Set",
       "collector_number": "4",
@@ -106,6 +146,14 @@
       "mana_cost": "{X}{R}",
       "type_line": "Sorcery",
       "rarity": "rare",
+      "image_uris": {
+        "small": "https://cards.scryfall.io/small/front/0/0/00000000-0000-4000-8000-000000106335.jpg?1759190400",
+        "normal": "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106335.jpg?1759190400",
+        "large": "https://cards.scryfall.io/large/front/0/0/00000000-0000-4000-8000-000000106335.jpg?1759190400",
+        "png": "https://cards.scryfall.io/png/front/0/0/00000000-0000-4000-8000-000000106335.png?1759190400",
+        "art_crop": "https://cards.scryfall.io/art_crop/front/0/0/00000000-0000-4000-8000-000000106335.jpg?1759190400",
+        "border_crop": "https://cards.scryfall.io/border_crop/front/0/0/00000000-0000-4000-8000-000000106335.jpg?1759190400"
+      },
       "set": "fra",
       "set_name": "Fixture Set",
       "collector_number": "5",

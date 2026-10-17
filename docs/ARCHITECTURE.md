@@ -33,9 +33,13 @@ internal/
                        the set of each draft it reads the start of; the card
                        task reads that set from the store, or fetches it from
                        Scryfall and stores it, and retries when offline
-                       (decision 26).
+                       (decision 26); the image task is told by the window
+                       which pictures are on screen, and hands back each
+                       one's local path, from disk or fetched four at a
+                       time, retrying failures on their own schedule
+                       (decision 27).
   cards/               A card's details as plain data (name, mana cost, type,
-                       rarity), keyed by Arena id, and how they read at a
+                       rarity, picture address), keyed by Arena id, and how they read at a
                        glance: "2GG · Creature — Elf Druid · Uncommon".
   store/               The SQLite cache (decision 11): schema with
                        migrations, and reads and writes of sets and their
@@ -45,7 +49,11 @@ internal/
                        per-host rate limit, context, backoff on 429/503,
                        conditional requests. Every request goes through it.
     scryfall/          A set's cards from Scryfall's paged search, by
-                       arena_id.
+                       arena_id; and card pictures, downloaded.
+  images/              The picture folder: a size cap with least-recently-
+                       used eviction that survives restarts, files checked
+                       and written whole, and local paths handed to go-gui
+                       (decisions 12, 27). Only reads and writes files.
   startup/             Time to first frame: when each stage of startup
                        finished, and the one-line report -startup-time prints
                        (decision 19).
@@ -59,8 +67,6 @@ added to this map by the same PR):
 ```
   fetch/seventeenlands/
                        Ratings, through the same client.
-  images/              The on-disk image cache: size cap, LRU eviction, and
-                       local paths handed to go-gui.
 ```
 
 The binary is a shell around `internal/`. If a behaviour only exists in
@@ -139,7 +145,7 @@ too (decision 25). A host with no row here gets one request a second.
 | Host | What | When | Ceiling |
 | ---- | ---- | ---- | ------- |
 | `api.scryfall.com` | Cards in a set, by `arena_id` (`/cards/search`, `e:<set> game:arena`, every print) | First draft of a set; then at most weekly, or daily for a set Scryfall had no cards for | 1 request / 500 ms; a handful of pages per set, at most 20; offline, retried after 30 s doubling to every 5 min while that set is on screen |
-| `cards.scryfall.io` | Card images, `normal` size | First time a card is shown | 4 concurrent; ~70 KB each |
+| `cards.scryfall.io` | Card images, `normal` size (decision 27) | First time a card is shown in a pack, then never again while it is on disk | 4 concurrent, 1 request / 100 ms; ~70 KB each, a pack ~1 MB; a failed picture retried after 30 s doubling to every 5 min while it is on screen |
 | `17lands.com` | Ratings for a set and format | First draft of a set; then at most once per 24 h | 1 request per set+format per day |
 | `17lands.com` | The user's chosen tier list | When chosen; then at most once per 24 h | 1 request per list per day |
 
@@ -151,13 +157,19 @@ costs no requests at all beyond the daily ratings check.
 
 Everything lives under `os.UserCacheDir()/mtga-draft-assistant` (decision 16):
 
-- `cache.db` — sets and their cards (ratings to come). A set is a few hundred
+- `cache.db` — sets and their cards, with each card's picture address
+  (ratings to come). A set is a few hundred
   rows of short text, tens of kilobytes. Opened only once a draft needs a
   set. If it cannot be created or read (a folder that cannot be written, a
   corrupt file, one from a newer version) the assistant works from memory,
   fetches each launch, and says so under the draft.
-- `images/` — capped at 200 MB by default, with least-recently-used eviction
-  (decision 12). That holds a few thousand cards, so several sets.
+- `images/` — capped at 200 MB, with least-recently-used eviction (decisions
+  12, 27). That holds a few thousand cards, so several sets. The last use is
+  each file's modification time, so the order and the cap hold across
+  restarts; pictures on screen are never evicted. Created only once a pack
+  with pictures is shown. If it cannot be written, cards show by name, the
+  window says so under the draft, and it is tried again from 30 s, doubling
+  to every 5 min.
 
 ### CPU, memory, and size
 
@@ -192,7 +204,8 @@ Everything lives under `os.UserCacheDir()/mtga-draft-assistant` (decision 16):
 - **Binary:** under `SIZE_BUDGET_MIB` (`Makefile`), enforced by `make size`.
   26.3 MiB with SQLite (decision 11): `modernc.org/sqlite` costs 4.1 MiB,
   measured against the same program without it; `net/http`'s client almost
-  nothing more, since go-gui already linked TLS.
+  nothing more, since go-gui already linked TLS. 26.4 MiB with card images
+  (decision 27): their decoders were already linked by go-gui.
 - **Memory:** to be budgeted once real numbers exist. Xvfb with Mesa's software
   renderer reports ~150 MB RSS for the empty window, which says more about
   llvmpipe than about the app; measure on real hardware first.

@@ -26,8 +26,10 @@ func windowCfg(ctx context.Context, model app.Model, opts Options) gui.WindowCfg
 	if opts.Startup != nil {
 		view = timeFirstFrame(mainView, opts.Startup, now, opts.OnFirstFrame)
 	}
+	st := newState(model)
+	st.showImages = opts.ShowImages
 	return gui.WindowCfg{
-		State:     newState(model),
+		State:     st,
 		Title:     "MTGA Draft Assistant",
 		Width:     defaultWidth,
 		Height:    defaultHeight,
@@ -45,6 +47,11 @@ func windowCfg(ctx context.Context, model app.Model, opts Options) gui.WindowCfg
 			// does not wait on them.
 			if opts.Start != nil {
 				opts.Start(ctx, func(msg app.Msg) { Post(w, msg) })
+			}
+			// A model that starts with a pack on screen has pictures
+			// to fetch before any message arrives.
+			if opts.ShowImages != nil {
+				opts.ShowImages(model.ImagesShown())
 			}
 		},
 	}
