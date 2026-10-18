@@ -31,6 +31,9 @@ type DraftScreen struct {
 	// PicksHeading is the line over the picks, with their count; empty
 	// before the first pick.
 	PicksHeading string
+	// Summary counts up the picks, or the pool once the draft is done:
+	// colours, creatures, and curve. Nil when PicksHeading is empty.
+	Summary *PicksSummary
 	// Picks is the picks so far, one line for each pack they came from.
 	Picks []string
 	// Footnote is a smaller note under it all.
@@ -79,6 +82,7 @@ func (m Model) DraftScreen() DraftScreen {
 		s.Heading = "Start another draft in Arena and its first pack appears here."
 		s.PicksHeading = fmt.Sprintf("Your pool (%s)", cardCount(len(d.Pool)))
 		s.Picks = poolLines(*d, name)
+		s.Summary = m.picksSummary(d.Set, d.Pool)
 		shown = d.Pool
 	} else {
 		if d.Pack > 0 {
@@ -102,9 +106,12 @@ func (m Model) DraftScreen() DraftScreen {
 		if len(d.Picks) > 0 {
 			s.PicksHeading = fmt.Sprintf("Your picks (%d)", len(d.Picks))
 			s.Picks = pickLines(d.Picks, name)
-			for _, p := range d.Picks {
-				shown = append(shown, p.Card)
+			picked := make([]int, len(d.Picks))
+			for i, p := range d.Picks {
+				picked[i] = p.Card
 			}
+			s.Summary = m.picksSummary(d.Set, picked)
+			shown = append(shown, picked...)
 		}
 	}
 	s.Notice = m.cardsNotice(d.Set, shown)

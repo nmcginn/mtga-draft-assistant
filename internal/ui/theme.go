@@ -11,6 +11,7 @@ type Theme struct {
 	TextMuted  gui.Color // secondary text: hints, counts, sources
 	Subtle     gui.Color // quiet structure: the scrollbar thumb
 	Surface    gui.Color // a card waiting for its picture
+	Bar        gui.Color // a column of a chart: the picks' mana curve
 
 	HeadlineSize float32
 	BodySize     float32
@@ -25,6 +26,9 @@ var Dark = Theme{
 	TextMuted:  gui.Hex(0x9a9ea6),
 	Subtle:     gui.Hex(0x3a3e47),
 	Surface:    gui.Hex(0x23262d),
+	// Quieter than the text, so the curve reads as a shape beside the
+	// pack without drawing the eye from it.
+	Bar: gui.Hex(0x5b7bb0),
 
 	HeadlineSize: 22,
 	BodySize:     14,
