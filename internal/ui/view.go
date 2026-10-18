@@ -31,7 +31,8 @@ func newState(model app.Model) *state {
 func mainView(w *gui.Window) gui.View {
 	s := gui.State[state](w)
 	if s.model.ShowsDraft() {
-		return draftView(s.model.DraftScreen(), s.theme)
+		width, _ := w.WindowSize()
+		return draftView(s.model.DraftScreen(), s.theme, width)
 	}
 	return statusView(s.model.Status(), s.theme)
 }
@@ -44,15 +45,27 @@ const (
 	cardHeight = 245
 )
 
+// The picks sit beside the pack, at panelWidth, once the window is wide
+// enough to keep two cards abreast with the panel next to them; narrower,
+// they go under it. The margin is the window's padding and the gaps between
+// cards and beside the panel, with room to spare, since the theme sets the
+// gaps. The curve's columns are curveHeight tall at the most common mana
+// value.
+const (
+	panelWidth  = 240
+	besideWidth = 2*cardWidth + panelWidth + 128
+	curveHeight = 48
+	curveColumn = 28
+)
+
 // draftView is the draft: its name and position, the pack as a grid of
-// cards that reflows with the window's width, and the picks so far under
-// it. Each card is its picture once that is on disk, and until then a
-// tile with its name, cost, type and rarity. It scrolls, since a full pack
-// and three packs of picks are taller than the window.
-func draftView(d app.DraftScreen, t Theme) gui.View {
-	text := func(id, s string, style gui.TextStyle) gui.View {
-		return gui.Text(gui.TextCfg{ID: id, Text: s, TextStyle: style, Mode: gui.TextModeWrap})
-	}
+// cards that reflows with the window's width, and the picks so far, counted
+// up and listed by pack: beside the pack when the window is wide enough
+// for both, and under it when not. Each card is its picture once that is
+// on disk, and until then a tile with its name, cost, type and rarity. It
+// scrolls, since a full pack and three packs of picks are taller than the
+// window.
+func draftView(d app.DraftScreen, t Theme, width int) gui.View {
 	content := []gui.View{text("draft-title", d.Title, t.title())}
 	if d.Position != "" {
 		content = append(content, text("draft-position", d.Position, t.label()))
@@ -76,15 +89,21 @@ func draftView(d app.DraftScreen, t Theme) gui.View {
 			Content: tiles,
 		}))
 	}
-	content = append(content, section("draft-pack", pack))
+	packView := section("draft-pack", pack)
 
-	if d.PicksHeading != "" {
-		picks := make([]gui.View, 0, len(d.Picks)+1)
-		picks = append(picks, text("draft-picks-heading", d.PicksHeading, t.label()))
-		for i, p := range d.Picks {
-			picks = append(picks, text(fmt.Sprintf("draft-picks-%d", i), p, t.note()))
-		}
-		content = append(content, section("draft-picks", picks))
+	switch {
+	case d.PicksHeading == "":
+		content = append(content, packView)
+	case len(d.Cards) > 0 && width >= besideWidth:
+		content = append(content, gui.Row(gui.ContainerCfg{
+			ID:      "draft-beside",
+			Sizing:  gui.FillFit,
+			Spacing: gui.SpacingLarge,
+			Padding: gui.NewPadding(0, 0, 0, 0),
+			Content: []gui.View{packView, picksView(d, t, true)},
+		}))
+	default:
+		content = append(content, packView, picksView(d, t, false))
 	}
 	if d.Footnote != "" {
 		content = append(content, text("draft-footnote", d.Footnote, t.note()))
@@ -98,6 +117,92 @@ func draftView(d app.DraftScreen, t Theme) gui.View {
 		Spacing:       gui.SpacingMedium,
 		Padding:       gui.NewPadding(16, 20, 16, 20),
 		Content:       content,
+	})
+}
+
+// text is a line of the draft view, wrapped to the width it is given.
+func text(id, s string, style gui.TextStyle) gui.View {
+	return gui.Text(gui.TextCfg{ID: id, Text: s, TextStyle: style, Mode: gui.TextModeWrap})
+}
+
+// picksView is the picks so far (or the pool): their heading, the counts
+// that say what the picks add up to, and the picks by pack: panelWidth
+// wide beside the pack, and the window's width under it.
+func picksView(d app.DraftScreen, t Theme, beside bool) gui.View {
+	picks := []gui.View{text("draft-picks-heading", d.PicksHeading, t.label())}
+	if sum := d.Summary; sum != nil {
+		if sum.Colours != "" {
+			picks = append(picks, text("draft-summary-colours", sum.Colours, t.body()))
+		}
+		if sum.Kinds != "" {
+			picks = append(picks, text("draft-summary-kinds", sum.Kinds, t.body()))
+		}
+		if len(sum.Curve) > 0 {
+			picks = append(picks, curveView(sum.Curve, t))
+		}
+		if sum.Unknown != "" {
+			picks = append(picks, text("draft-summary-unknown", sum.Unknown, t.note()))
+		}
+	}
+	for i, p := range d.Picks {
+		picks = append(picks, text(fmt.Sprintf("draft-picks-%d", i), p, t.note()))
+	}
+	v := section("draft-picks", picks)
+	if !beside {
+		return v
+	}
+	return gui.Column(gui.ContainerCfg{
+		ID:      "draft-picks-panel",
+		Sizing:  gui.FixedFit,
+		Width:   panelWidth,
+		Padding: gui.NewPadding(0, 0, 0, 0),
+		Content: []gui.View{v},
+	})
+}
+
+// curveView is the mana curve as columns: each with its count over it and
+// its mana value under it, the tallest curveHeight high, the others in
+// proportion, so the shape reads at a glance and the numbers on a second
+// look. A mana value with no spells has its count and no column.
+func curveView(curve []app.CurveColumn, t Theme) gui.View {
+	most := 0
+	for _, c := range curve {
+		most = max(most, c.Count)
+	}
+	cols := make([]gui.View, len(curve))
+	for i, c := range curve {
+		id := fmt.Sprintf("draft-curve-%d", i)
+		content := []gui.View{gui.Text(gui.TextCfg{ID: id + "-count", Text: fmt.Sprint(c.Count), TextStyle: t.note()})}
+		if c.Count > 0 {
+			content = append(content, gui.Column(gui.ContainerCfg{
+				ID:      id + "-bar",
+				Sizing:  gui.FixedFixed,
+				Width:   curveColumn - 8,
+				Height:  max(2, float32(curveHeight*c.Count)/float32(most)),
+				Color:   t.Bar,
+				Radius:  gui.RadiusSmall,
+				Padding: gui.NewPadding(0, 0, 0, 0),
+			}))
+		}
+		content = append(content, gui.Text(gui.TextCfg{ID: id + "-label", Text: c.Label, TextStyle: t.note()}))
+		cols[i] = gui.Column(gui.ContainerCfg{
+			ID:      id,
+			Sizing:  gui.FixedFit,
+			Width:   curveColumn,
+			HAlign:  gui.HAlignCenter,
+			VAlign:  gui.VAlignBottom,
+			Spacing: gui.SpacingTight,
+			Padding: gui.NewPadding(0, 0, 0, 0),
+			Content: content,
+		})
+	}
+	return gui.Row(gui.ContainerCfg{
+		ID:      "draft-curve",
+		Sizing:  gui.FitFit,
+		VAlign:  gui.VAlignBottom,
+		Spacing: gui.SpacingSmall,
+		Padding: gui.NewPadding(4, 0, 0, 0),
+		Content: cols,
 	})
 }
 

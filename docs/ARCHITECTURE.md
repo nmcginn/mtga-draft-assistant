@@ -54,6 +54,9 @@ internal/
                        used eviction that survives restarts, files checked
                        and written whole, and local paths handed to go-gui
                        (decisions 12, 27). Only reads and writes files.
+  pool/                A set of drafted cards counted up: colours, mana
+                       curve, creatures and other spells, lands (pure,
+                       decision 28). The picks panel shows it.
   startup/             Time to first frame: when each stage of startup
                        finished, and the one-line report -startup-time prints
                        (decision 19).
@@ -78,7 +81,7 @@ Three layers, and the boundaries are load-bearing:
 
 **Computation** — parsing log lines, joining cards to ratings, ranking a pack,
 every state transition. Pure functions over plain data: `app.Model.Apply`,
-`app.Model.Status`, `app.Model.DraftScreen`, `draft.Apply`. All of it is
+`app.Model.Status`, `app.Model.DraftScreen`, `draft.Apply`, `pool.Summarize`. All of it is
 tested directly.
 
 **I/O** — the log file, the cache database, the network. Confined to narrow

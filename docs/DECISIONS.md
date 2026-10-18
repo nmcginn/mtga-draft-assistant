@@ -329,3 +329,19 @@ schedule, so fixing it needs no restart. Until its picture is on disk, a
 card is a tile of the same size with its name, cost, type and rarity, and
 a failed download is explained above the pack. The JPEG and PNG decoders
 cost nothing: go-gui's backends link them already (the binary grew 0.1 MiB).
+
+### 28. The picks panel: counted from the cost and type line, beside a wide pack
+
+The picks so far (the pool, once the draft ends) are counted by colour, by
+mana value, and as creatures, other spells and lands. Colour and mana value
+are read from the mana cost already stored, and creature or land from the
+type line, rather than adding Scryfall's `colors` and `cmc`: what is stored
+says enough, and the cache needs no migration or refetch. A card's colours
+are every colour in its cost on any face, a gold card counting once in each;
+its mana value is its front face's, with {X} as 0 and a hybrid as its larger
+half (a split card is undercounted). Lands count apart, and on neither the
+colours nor the curve. Colours are listed most first, so the two leading
+are the deck's; the curve runs 1 to 6+, with a 0 column only when a spell
+costs nothing. Cards with no details are left out, and the panel says how
+many. The panel sits beside the pack, 240 px wide, once the window can
+still keep two cards abreast with it (720 px), and under the pack when not.

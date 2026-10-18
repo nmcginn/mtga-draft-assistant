@@ -89,11 +89,6 @@ by rating, with card images, before the pick timer matters. macOS and Linux
   whether 17lands allows a desktop tool to fetch them once a day per set,
   with credit. Record both in decision 13.
 
-- [ ] **The picks-so-far panel.**
-  - Colour counts, a mana curve, and creature/non-creature split of the picks,
-    beside or under the pack depending on window width.
-  - Pure summary functions, tested on their own.
-
 - [ ] **Letter grades from a 17lands tier list.** *Blocked on 17lands'
   terms, as above.*
   - The user pastes a 17lands tier list link; it is validated, stored in a small
@@ -183,3 +178,6 @@ Each needs a decision from the maintainer before it becomes a task.
   least-recently-used eviction that holds across restarts; a grid that
   reflows with the window, a placeholder with the card's name meanwhile,
   failures retried on their own schedule, and corrupt files replaced. (12, 27)
+- [x] The picks-so-far panel: colours, creatures and other spells, and a mana
+  curve of the picks (and the pool once the draft ends), beside the pack in
+  a wide window and under it in a narrow one. (28)
