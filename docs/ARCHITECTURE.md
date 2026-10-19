@@ -244,6 +244,37 @@ file (or the folder holding it).
   `GOGUI_WAYLAND=1`).
 - **macOS:** needs cgo and the Xcode command-line tools for go-gui's Metal
   backend. Cross-compiling for macOS from Linux produces a binary that panics at
-  launch (decision 3), so macOS is built on macOS.
+  launch (decision 3), so macOS is built on macOS. One Mac builds both
+  architectures, since cgo cross-compiles between them. Release builds
+  target macOS 13, because clang otherwise stamps the binary with the
+  building machine's macOS; 13 rather than Go's 12, because go-gui's Metal
+  backend uses Metal's 3.0 shading language (decision 29).
 - **Windows:** `CGO_ENABLED=0`; compile-checked by `make cross`, not shipped
   until after the MVP.
+
+### Releasing
+
+`make dist VERSION=v1.2.3` builds this OS's packages, both architectures,
+into `dist/`, and `make dist-check` unpacks them and checks them (decision
+29). The files that go into them, beside the binary, are under
+`packaging/`.
+
+| Package | Holds |
+| ------- | ----- |
+| `mtga-draft-assistant-<version>-linux-<amd64\|arm64>.tar.gz` | A folder: the binary, `mtga-draft-assistant.desktop`, `README.md`, `LICENSE` |
+| `mtga-draft-assistant-<version>-macos-<arm64\|amd64>.zip` | `MTGA Draft Assistant.app`, signed ad hoc |
+| `SHA256SUMS` | The SHA-256 of each of the above |
+
+CI builds and checks the packages on every PR and keeps them a week as the
+`packages-*` artifacts. To release, push a tag:
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+`.github/workflows/release.yml` then tests that commit on both OSes, builds,
+checks and checksums the packages, and attaches them to a **draft** release
+with generated notes; a tag with a suffix (`v0.1.0-rc.1`) is marked a
+pre-release. Read the draft and publish it. Run by hand from the Actions tab,
+the same workflow is a dry run: it keeps the packages as an artifact and
+releases nothing.

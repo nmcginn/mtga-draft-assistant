@@ -7,8 +7,9 @@ Arena writes as you play, and shows the pack in front of you ranked by rating,
 with card images, so the strong picks stand out at a glance. Later, it helps you
 build the deck from what you drafted.
 
-> **Status: early.** The window opens and waits for Arena; draft tracking is
-> being built one pull request at a time. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> **Status: early.** It follows a Premier or Quick Draft and shows the pack
+> with card names and pictures, and your picks counted up beside it. Ratings,
+> and so the ranking, are not in yet. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## What it does, and what it doesn't
 
@@ -35,14 +36,55 @@ lists where it is looking. If Arena is installed somewhere else, point it at the
 log:
 
 ```sh
-./bin/mtga-draft-assistant -log "/path/to/Player.log"
+mtga-draft-assistant -log "/path/to/Player.log"
 ```
 
 ## Install
 
-Release builds for macOS and Linux will be published on the
-[releases page](https://github.com/nmcginn/mtga-draft-assistant/releases). Until
-then, build from source.
+Download the build for your machine from the
+[releases page](https://github.com/nmcginn/mtga-draft-assistant/releases).
+Each release lists the SHA-256 of every file in `SHA256SUMS`; compare it with
+`shasum -a 256 <file>` (macOS) or `sha256sum <file>` (Linux).
+
+### macOS
+
+Needs macOS 13 Ventura or later. Download
+`mtga-draft-assistant-<version>-macos-arm64.zip` for Apple silicon (M1 and
+later) or `…-macos-amd64.zip` for an Intel Mac, open it, and drag
+**MTGA Draft Assistant** into Applications.
+
+The app is not yet signed with an Apple Developer ID, so the first time you
+open it macOS says it cannot verify it and offers to move it to the Trash. Choose
+**Done**, then open **System Settings → Privacy & Security**, scroll down to
+**Security**, and click **Open Anyway** beside the assistant's name. After
+that it opens like any other app. (On macOS 14 and earlier, Control-clicking
+the app and choosing **Open** does the same.)
+
+To give it flags such as `-log`, run it from Terminal:
+
+```sh
+"/Applications/MTGA Draft Assistant.app/Contents/MacOS/mtga-draft-assistant" -log "/path/to/Player.log"
+```
+
+### Linux
+
+Needs X11 (or experimental Wayland via `GOGUI_WAYLAND=1`) and `libEGL`
+(`libegl1` on Debian and Ubuntu). Download
+`mtga-draft-assistant-<version>-linux-amd64.tar.gz` (or `…-arm64` on ARM), and
+install the binary and its launcher for your user:
+
+```sh
+tar -xzf mtga-draft-assistant-<version>-linux-amd64.tar.gz
+cd mtga-draft-assistant-<version>-linux-amd64
+install -Dm755 mtga-draft-assistant ~/.local/bin/mtga-draft-assistant
+install -Dm644 mtga-draft-assistant.desktop ~/.local/share/applications/mtga-draft-assistant.desktop
+```
+
+It then appears among your applications as **MTGA Draft Assistant**. The
+launcher runs `mtga-draft-assistant` from your `PATH`, which includes
+`~/.local/bin` on most distributions; if yours does not, install the binary
+somewhere that is. To uninstall, delete those two files (and, if you like, the
+cache below).
 
 ### From source
 
@@ -75,6 +117,7 @@ make help     # every target
 make check    # what CI runs: format, vet, lint, race tests, cross-compile, size
 make run      # build and launch
 make smoke    # launch the release build, screenshot it, check it idles (Linux)
+make dist VERSION=v1.2.3   # this OS's release packages, both architectures, into dist/
 ```
 
 `-startup-time` prints how long the first frame took to reach the screen, and

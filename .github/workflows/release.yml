@@ -1,0 +1,102 @@
+name: Release
+
+# A tag like v1.2.3 builds the macOS and Linux packages, checksums them, and
+# attaches them to a draft release; the maintainer reads it and publishes it
+# (decision 29). Run by hand from the Actions tab, it builds and checks the
+# same packages and keeps them as an artifact, releasing nothing: a dry run
+# before the first tag.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to stamp on the dry run's packages
+        default: v0.0.0-dryrun
+        required: true
+
+permissions:
+  contents: read
+
+# Through env, never pasted into a script, so a hand-typed version is data;
+# scripts/dist.sh refuses anything not shaped like v1.2.3.
+env:
+  VERSION: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # Each OS builds both its architectures: Linux cross-compiles without
+        # cgo, macOS with it (decision 3).
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      # A release is tested on its own commit, whatever CI said about the
+      # branch it came from.
+      - name: Test, under the race detector
+        run: make race
+
+      - name: Install the .desktop validator
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends desktop-file-utils
+
+      - name: Build the packages
+        run: make dist VERSION="$VERSION"
+
+      - name: Check the packages
+        run: make dist-check VERSION="$VERSION"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: packages-${{ runner.os }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Checksum and release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: packages-*
+          path: dist
+          merge-multiple: true
+
+      - name: Checksum
+        working-directory: dist
+        run: |
+          sha256sum -- * > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Keep the packages and their checksums
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ env.VERSION }}
+          path: dist/*
+          if-no-files-found: error
+
+      # A draft: visible to the maintainer only, until they publish it. A
+      # version with a suffix (v1.2.3-rc.1) is marked a pre-release.
+      - name: Draft the release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=
+          case $VERSION in *-*) prerelease=--prerelease ;; esac
+          gh release create "$VERSION" dist/* \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --draft $prerelease \
+            --title "$VERSION" --generate-notes

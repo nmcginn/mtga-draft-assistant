@@ -52,6 +52,27 @@ jobs:
       - name: The binary starts without a display
         run: ./bin/mtga-draft-assistant -version
 
+      # The release workflow's packaging, run on every PR so a tag is never
+      # its first run (decision 29). The packages are kept a week, so a
+      # reviewer can try the macOS app without building it.
+      - name: Install the .desktop validator
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends desktop-file-utils
+
+      - name: Build and check the release packages
+        run: |
+          make dist VERSION=v0.0.0-ci
+          make dist-check VERSION=v0.0.0-ci
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: packages-${{ matrix.os }}
+          path: dist/*
+          retention-days: 7
+          if-no-files-found: error
+
       # Linux measures this in the smoke job, under Xvfb. macOS runners have
       # a logged-in session, so the real Metal window can open here. Three
       # runs: the first pays the cold shader cache a fresh runner always has,

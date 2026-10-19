@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=MTGA Draft Assistant
+GenericName=Draft Companion
+Comment=See the MTG Arena pack in front of you ranked, beside the game
+Exec=mtga-draft-assistant
+Terminal=false
+Categories=Game;CardGame;
+Keywords=Magic;MTG;Arena;Draft;
