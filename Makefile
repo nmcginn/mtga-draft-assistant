@@ -38,7 +38,7 @@ build: ## Debug build into bin/
 	$(GO) build -o bin/$(BIN) $(PKG)
 
 release: ## Stripped release build into bin/
-	$(GO) build $(RELEASE_FLAGS) -o $(OUT) $(PKG)
+	$(GO) build $(RELEASE_FLAGS) -o "$(OUT)" $(PKG)
 
 run: ## Run the app (make run ARGS="-version")
 	$(GO) run $(PKG) $(ARGS)
