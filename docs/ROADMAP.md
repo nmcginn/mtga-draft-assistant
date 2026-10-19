@@ -97,17 +97,17 @@ by rating, with card images, before the pick timer matters. macOS and Linux
   - Tests: a bad link says what a good one looks like; a list for a different set
     is ignored for this draft with a note.
 
-- [ ] **Release builds for macOS and Linux.**
-  - A tag-triggered workflow that builds a macOS `.app` (zipped, arm64 and
-    amd64) and a Linux tarball (amd64 and arm64) with a `.desktop` file, and
-    attaches them with SHA-256 checksums.
-  - README install section updated.
-  - Signing and notarisation for macOS are a separate **needs human** item:
-    without them, Gatekeeper warns on first launch, and the README says how to
-    open it anyway.
-
 - [ ] **Needs human: macOS signing and notarisation.**
   Needs an Apple Developer account and its credentials as repository secrets.
+  Then `scripts/dist.sh` signs with the Developer ID instead of ad hoc,
+  notarises and staples each `.app`, and the README's Gatekeeper steps go
+  (decision 29).
+
+- [ ] **Needs human: the first release.** Push a tag (`v0.1.0`, or
+  `v0.1.0-rc.1` to try it as a pre-release) when it is worth a release (the
+  ranking is not in yet), read the draft the release workflow makes, and
+  publish it (`docs/ARCHITECTURE.md`, "Releasing"). A dry run from the
+  Actions tab first is cheap.
 
 ### Milestone 2 — Building the deck
 
@@ -141,6 +141,9 @@ Each needs a decision from the maintainer before it becomes a task.
   only the drafted set is searched. Neither fixture's packs hold one; a
   fixture that does would show which set to search, or whether to look such
   cards up one by one (decision 26).
+- **An app icon.** Neither the `.app` nor the Linux launcher has one, so
+  each shows the system's generic icon (decision 29). Artwork is the
+  maintainer's call: something drawn for it, not Arena's or Wizards' marks.
 - **A startup-time gate in CI.** The time to first frame is reported on every
   PR (decision 19) but not gated; whether to fail CI on it, and at what
   number, waits on enough CI runs to see how much it varies.
@@ -181,3 +184,7 @@ Each needs a decision from the maintainer before it becomes a task.
 - [x] The picks-so-far panel: colours, creatures and other spells, and a mana
   curve of the picks (and the pool once the draft ends), beside the pack in
   a wide window and under it in a narrow one. (28)
+- [x] Release builds: a tag drafts a GitHub release with a zipped `.app` for
+  macOS and a tarball with a `.desktop` launcher for Linux, arm64 and amd64
+  each, and `SHA256SUMS`; the same packages built and checked on every PR;
+  README install steps, Gatekeeper's first launch included. (29)

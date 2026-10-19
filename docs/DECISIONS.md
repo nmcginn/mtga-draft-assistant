@@ -345,3 +345,23 @@ are the deck's; the curve runs 1 to 6+, with a 0 column only when a spell
 costs nothing. Cards with no details are left out, and the panel says how
 many. The panel sits beside the pack, 240 px wide, once the window can
 still keep two cards abreast with it (720 px), and under the pack when not.
+
+### 29. Releases: packaged by script, checked on every PR, drafted from a tag
+
+`scripts/dist.sh` builds each OS's packages, both architectures, with the
+flags `make release` owns and the tag stamped in as the version, and holds
+each binary to the size budget. Linux gets a tarball per architecture with a
+`.desktop` launcher that runs the binary from `PATH`, installed per user by
+two `install` commands in the README rather than an install script that
+writes to the user's directories for them. macOS gets a zipped `.app` per
+architecture rather than one universal binary, which would double the
+download; it is built with `MACOSX_DEPLOYMENT_TARGET=12.0`, Go's own floor,
+since clang otherwise writes the runner's macOS into the binary, and signed
+ad hoc, so the signature seals the bundle (Apple silicon runs nothing
+unsigned). Until it is notarised (a **needs human** item), Gatekeeper warns
+on first launch and the README says how to open it. `scripts/check-dist.sh`
+unpacks each package and checks its contents, its architecture, its
+signature and minimum macOS, and runs what the machine can with `-version`.
+CI runs both on every PR, so a tag is never the packaging's first run. A tag
+makes a **draft** release with `SHA256SUMS`; publishing it stays a person's
+act. There is no app icon yet: that is artwork, the maintainer's call.
