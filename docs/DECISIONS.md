@@ -355,10 +355,14 @@ each binary to the size budget. Linux gets a tarball per architecture with a
 two `install` commands in the README rather than an install script that
 writes to the user's directories for them. macOS gets a zipped `.app` per
 architecture rather than one universal binary, which would double the
-download; it is built with `MACOSX_DEPLOYMENT_TARGET=12.0`, Go's own floor,
-since clang otherwise writes the runner's macOS into the binary, and signed
-ad hoc, so the signature seals the bundle (Apple silicon runs nothing
-unsigned). Until it is notarised (a **needs human** item), Gatekeeper warns
+download. It targets macOS 13, since clang otherwise writes the runner's
+macOS into the binary: not Go's floor of 12, because go-gui's Metal backend
+uses Metal's 3.0 shading language, which 13 brought. The target goes in
+`CGO_CFLAGS` as well as `MACOSX_DEPLOYMENT_TARGET`, because Go's build cache
+keys on the first and not the second, and the build fails on any compiler
+warning that part of the app needs a newer macOS, so a dependency cannot
+raise the real minimum unnoticed. The `.app` is signed ad hoc, so the
+signature seals the bundle (Apple silicon runs nothing unsigned). Until it is notarised (a **needs human** item), Gatekeeper warns
 on first launch and the README says how to open it. `scripts/check-dist.sh`
 unpacks each package and checks its contents, its architecture, its
 signature and minimum macOS, and runs what the machine can with `-version`.

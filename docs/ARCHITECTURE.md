@@ -245,9 +245,10 @@ file (or the folder holding it).
 - **macOS:** needs cgo and the Xcode command-line tools for go-gui's Metal
   backend. Cross-compiling for macOS from Linux produces a binary that panics at
   launch (decision 3), so macOS is built on macOS. One Mac builds both
-  architectures, since cgo cross-compiles between them. Release builds set
-  `MACOSX_DEPLOYMENT_TARGET=12.0`, Go's own floor, because clang otherwise
-  stamps the binary with the building machine's macOS (decision 29).
+  architectures, since cgo cross-compiles between them. Release builds
+  target macOS 13, because clang otherwise stamps the binary with the
+  building machine's macOS; 13 rather than Go's 12, because go-gui's Metal
+  backend uses Metal's 3.0 shading language (decision 29).
 - **Windows:** `CGO_ENABLED=0`; compile-checked by `make cross`, not shipped
   until after the MVP.
 

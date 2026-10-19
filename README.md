@@ -48,7 +48,7 @@ Each release lists the SHA-256 of every file in `SHA256SUMS`; compare it with
 
 ### macOS
 
-Needs macOS 12 Monterey or later. Download
+Needs macOS 13 Ventura or later. Download
 `mtga-draft-assistant-<version>-macos-arm64.zip` for Apple silicon (M1 and
 later) or `…-macos-amd64.zip` for an Intel Mac, open it, and drag
 **MTGA Draft Assistant** into Applications.

@@ -31,11 +31,12 @@ if ! printf '%s\n' "$version" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-
 	exit 2
 fi
 
-# Go's own floor for macOS: its linker writes 12.0 into every binary it
-# links itself. A cgo binary is linked by clang instead, which otherwise
-# writes the building machine's macOS, so an app built on the newest runner
-# would refuse to start on anything older.
-min_macos=12.0
+# The oldest macOS the app runs on. Go's own floor is 12, but go-gui's Metal
+# backend asks for Metal's 3.0 shading language, which macOS 13 brought. A
+# cgo binary is linked by clang, which otherwise writes the building
+# machine's macOS into it, so an app built on the newest runner would refuse
+# to start on anything older.
+min_macos=13.0
 
 name=mtga-draft-assistant
 work=$(mktemp -d)
@@ -46,9 +47,23 @@ mkdir -p dist
 rm -f dist/$name-* dist/SHA256SUMS
 
 # build <goos> <goarch> <cgo> <out>: the same flags as `make release`, which
-# owns them.
+# owns them. The compiler's warnings are kept and read, because two of them
+# mean the binary would not run on the macOS it promises: code that needs a
+# newer macOS than min_macos, and objects compiled for one.
 build() {
-	GOOS=$1 GOARCH=$2 CGO_ENABLED=$3 make --no-print-directory -s release VERSION="$version" OUT="$4"
+	if ! GOOS=$1 GOARCH=$2 CGO_ENABLED=$3 make --no-print-directory -s release \
+		VERSION="$version" OUT="$4" 2>"$work/stderr"; then
+		cat "$work/stderr" >&2
+		exit 1
+	fi
+	cat "$work/stderr" >&2
+	if grep -Eq "is only available on macOS|built for newer 'macOS' version" "$work/stderr"; then
+		echo "Part of the app needs a newer macOS than the $min_macos it promises (above)." >&2
+		echo "'is only available': a dependency now needs that macOS; raise min_macos in $0," >&2
+		echo "and the README's macOS line with it. 'built for newer': the -mmacosx-version-min" >&2
+		echo "flags did not reach that object; check the CGO_CFLAGS this script sets." >&2
+		exit 1
+	fi
 	scripts/check-size.sh "$4" "$budget"
 }
 
@@ -71,7 +86,14 @@ Darwin)
 	for arch in arm64 amd64; do
 		app="$work/$arch/MTGA Draft Assistant.app"
 		mkdir -p "$app/Contents/MacOS"
-		MACOSX_DEPLOYMENT_TARGET=$min_macos build darwin "$arch" 1 "$app/Contents/MacOS/$name"
+		# The target in the flags as well as the environment: Go's build cache
+		# keys on CGO_CFLAGS but not on MACOSX_DEPLOYMENT_TARGET, so without
+		# them cgo objects cached by a plain build, compiled for the runner's
+		# macOS, are linked in as they are. -O2 -g are Go's defaults.
+		MACOSX_DEPLOYMENT_TARGET=$min_macos \
+			CGO_CFLAGS="-O2 -g -mmacosx-version-min=$min_macos" \
+			CGO_LDFLAGS="-O2 -g -mmacosx-version-min=$min_macos" \
+			build darwin "$arch" 1 "$app/Contents/MacOS/$name"
 		sed -e "s/@SHORT_VERSION@/$short/g" -e "s/@MIN_MACOS@/$min_macos/g" \
 			packaging/macos/Info.plist >"$app/Contents/Info.plist"
 		plutil -lint -s "$app/Contents/Info.plist"
