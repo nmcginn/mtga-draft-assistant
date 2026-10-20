@@ -424,7 +424,7 @@ func TestAfterAPickTheWindowSaysItIsWaitingAndListsThePick(t *testing.T) {
 	}
 }
 
-func TestAFinishedDraftShowsThePoolByPack(t *testing.T) {
+func TestAFinishedDraftWhoseCardsAreUnknownShowsThePoolByPack(t *testing.T) {
 	model := fullDraft(t)
 	_, got := render(t, model, defaultWidth, defaultHeight)
 	s := model.DraftScreen()
@@ -583,13 +583,14 @@ func TestTheRealTasksPutAFixturesDraftOnScreenWithCardNamesFromScryfall(t *testi
 	for {
 		w.FrameFn()
 		got := texts(w.TestRender(nil))
-		// The fixture's first pick is 106453, which testdata/scryfall names.
+		// The fixture's first pick is 106453, which testdata/scryfall names
+		// as a green two-drop; the pool is grouped by colour once it is.
 		if slices.Contains(got, "Card details from Scryfall.") &&
-			slices.ContainsFunc(got, func(s string) bool { return strings.HasPrefix(s, "Pack 1: Gilded Pathfinder, ") }) {
+			slices.Contains(got, "Green (2)") && slices.Contains(got, "Gilded Pathfinder · 1G") {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("after 5s the window shows %q, never the pool by name", got)
+			t.Fatalf("after 5s the window shows %q, never the pool grouped by name", got)
 		}
 		time.Sleep(time.Millisecond)
 	}

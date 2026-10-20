@@ -184,6 +184,9 @@ func TestAFinishedDraftShowsItsPoolAndWhatToDoNext(t *testing.T) {
 	if s.PicksHeading != "Your pool (42 cards)" || len(s.Picks) != 3 || !strings.HasPrefix(s.Picks[2], "Pack 3: ") {
 		t.Errorf("pool: %q %q, want 42 cards on three lines, by pack", s.PicksHeading, s.Picks)
 	}
+	if s.Pool != nil {
+		t.Errorf("pool grouped as %+v with no card's details known", s.Pool)
+	}
 }
 
 func TestAPoolWithPicksTheLogMissedIsShownAsArenaGaveIt(t *testing.T) {

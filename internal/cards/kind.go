@@ -33,6 +33,14 @@ func (c Colour) Letter() string {
 	return colourLetters[c : c+1]
 }
 
+// colourNames are the colours as words, in WUBRG order.
+var colourNames = [...]string{"White", "Blue", "Black", "Red", "Green"}
+
+// Name is the colour as a word: "White", "Blue", "Black", "Red", "Green".
+func (c Colour) Name() string {
+	return colourNames[c]
+}
+
 // Kind is what a card is, for counting a pool: a creature, a land, or any
 // other spell.
 type Kind int

@@ -50,14 +50,15 @@ func TestPicksThePickJustMadeAndThePoolAreNamedToo(t *testing.T) {
 	if !slices.Equal(s.Picks, []string{"Pack 1: Verdant Oathkeeper"}) {
 		t.Errorf("picks %q", s.Picks)
 	}
+	// The pool, grouped once its cards are known (decision 30), names
+	// every card in it, whether or not the picks read match it.
 	done := m.Apply(DraftEvents{Events: []arena.Event{arena.DraftEnded{Pool: []int{106325}}}}).DraftScreen()
-	if !slices.Equal(done.Picks, []string{"Pack 1: Verdant Oathkeeper"}) {
-		t.Errorf("pool %q", done.Picks)
+	if len(done.Pool) != 1 || !slices.Equal(done.Pool[0].Cards, []string{"Verdant Oathkeeper · 2GG"}) {
+		t.Errorf("pool %q", done.Pool)
 	}
-	// A pool the picks do not match is listed as Arena gave it, named.
 	odd := m.Apply(DraftEvents{Events: []arena.Event{arena.DraftEnded{Pool: []int{106235, 106325}}}}).DraftScreen()
-	if !slices.Equal(odd.Picks, []string{"Thornwood Scout, Verdant Oathkeeper"}) {
-		t.Errorf("pool %q", odd.Picks)
+	if len(odd.Pool) != 1 || !slices.Equal(odd.Pool[0].Cards, []string{"Thornwood Scout · G", "Verdant Oathkeeper · 2GG"}) {
+		t.Errorf("pool %q", odd.Pool)
 	}
 }
 

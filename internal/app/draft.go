@@ -34,8 +34,14 @@ type DraftScreen struct {
 	// Summary counts up the picks, or the pool once the draft is done:
 	// colours, creatures, and curve. Nil when PicksHeading is empty.
 	Summary *PicksSummary
-	// Picks is the picks so far, one line for each pack they came from.
+	// Picks is the picks so far, one line for each pack they came from;
+	// or a finished draft's pool, the same way, while none of its cards'
+	// details are known to group it by.
 	Picks []string
+	// Pool is a finished draft's pool, grouped by colour to build a deck
+	// from (decision 30); nil before the draft ends, and while none of its
+	// cards' details are known, when Picks lists it instead.
+	Pool []PoolGroup
 	// Footnote is a smaller note under it all.
 	Footnote string
 }
@@ -81,7 +87,9 @@ func (m Model) DraftScreen() DraftScreen {
 		s.Position = "Draft complete"
 		s.Heading = "Start another draft in Arena and its first pack appears here."
 		s.PicksHeading = fmt.Sprintf("Your pool (%s)", cardCount(len(d.Pool)))
-		s.Picks = poolLines(*d, name)
+		if s.Pool = m.poolGroups(d.Set, d.Pool); s.Pool == nil {
+			s.Picks = poolLines(*d, name)
+		}
 		s.Summary = m.picksSummary(d.Set, d.Pool)
 		shown = d.Pool
 	} else {
@@ -185,9 +193,11 @@ func pickLines(picks []draft.Pick, name func(int) string) []string {
 	return lines
 }
 
-// poolLines is a finished draft's pool. When the picks read are exactly the
-// pool, they are shown by pack, in the order taken; otherwise some picks were
-// missed (the log began mid-draft), and the pool is shown as Arena gave it.
+// poolLines is a finished draft's pool while none of its cards' details are
+// known, so it cannot be grouped by colour. When the picks read are exactly
+// the pool, they are shown by pack, in the order taken; otherwise some picks
+// were missed (the log began mid-draft), and the pool is shown as Arena gave
+// it.
 func poolLines(d draft.Draft, name func(int) string) []string {
 	if len(d.Pool) == 0 {
 		return nil

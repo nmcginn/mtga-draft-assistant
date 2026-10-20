@@ -369,3 +369,21 @@ signature and minimum macOS, and runs what the machine can with `-version`.
 CI runs both on every PR, so a tag is never the packaging's first run. A tag
 makes a **draft** release with `SHA256SUMS`; publishing it stays a person's
 act. There is no app icon yet: that is artwork, the maintainer's call.
+
+### 30. The pool: heaps by colour, in the summary's order, up the curve
+
+Once the draft ends, the pool is laid out as a player sorts it on the table:
+a heap for each colour, then multicoloured cards (a hybrid card is one), the
+colourless spells, and the lands, with any card whose details are not known
+in a last heap by Arena id. Gold cards are one heap, not one per pair: the
+heap is small in a draft pool, and each line's cost shows its colours. The
+colour heaps follow the colours line over them (decision 28: most spells
+first, a gold card counting in each of its colours, ties in WUBRG order), so
+the two the summary leads with are the two the eye meets first. Within a
+heap, cards run up the curve, then by name, and copies (the same name and
+cost) share a line, "2× Gilded Pathfinder · 1G". Until 17lands' ratings land,
+the curve is the order; the ratings task re-sorts each heap by rating. Heaps
+are 176 px columns that wrap, two abreast at the default width. While no
+card of the pool is known, nothing can be grouped, so the pool is listed by
+pack as before.
+

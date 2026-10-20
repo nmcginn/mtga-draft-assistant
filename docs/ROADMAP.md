@@ -76,6 +76,8 @@ by rating, with card images, before the pick timer matters. macOS and Linux
     to matter. Cards with no rating sort last and say "no data yet". The
     rating is on each card in the pack's grid: on its picture, and on its
     placeholder while the picture is coming.
+  - A finished draft's pool is sorted by rating within each of its heaps
+    (decision 30), best first, in place of up the curve.
   - 17lands is credited in the window.
   - Tests: ranking with ties and missing ratings; a stale rating is refreshed
     once; offline uses what is stored.
@@ -111,8 +113,6 @@ by rating, with card images, before the pick timer matters. macOS and Linux
 
 ### Milestone 2 — Building the deck
 
-- [ ] **The pool, after the draft.** All picks grouped by colour and sorted by
-  rating, with the curve, shown when the draft ends.
 - [ ] **Suggested colours.** The colour pairs whose best 23 playables rate
   highest, with the reasoning shown (which cards carry it), not just an answer.
 - [ ] **A 40-card build.** A suggested 23 spells and 17 lands for the chosen
@@ -188,3 +188,10 @@ Each needs a decision from the maintainer before it becomes a task.
   macOS and a tarball with a `.desktop` launcher for Linux, arm64 and amd64
   each, and `SHA256SUMS`; the same packages built and checked on every PR;
   README install steps, Gatekeeper's first launch included. (29)
+
+### Milestone 2
+
+- [x] The pool, after the draft: grouped by colour, then gold, colourless and
+  lands, the pool's leading colours first, each heap up the curve with
+  copies on one line, under the curve; by pack while no card is known.
+  Sorting by rating moved into the ratings task. (30)

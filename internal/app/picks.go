@@ -118,3 +118,87 @@ func count(n int, one, many string) string {
 	}
 	return fmt.Sprintf("%d %s", n, many)
 }
+
+// PoolGroup is one heap of a finished draft's pool: a colour, the gold
+// cards, the colourless spells, the lands, or the cards whose details are
+// not known.
+type PoolGroup struct {
+	// Heading names the heap and how many cards are in it: "Green (12)".
+	Heading string
+	// Cards is the heap's cards up the curve, one line each, with copies
+	// on one line: "2× Gilded Pathfinder · 1G". A land has no cost.
+	Cards []string
+}
+
+// poolGroups lays out ids, a finished draft's pool, by colour (decision 30),
+// with any cards whose details are not known in a heap of their own at the
+// end, by id. Nil when no card's details are known, since then there is
+// nothing to group by.
+func (m Model) poolGroups(set string, ids []int) []PoolGroup {
+	var known []cards.Card
+	var unknown []int
+	for _, id := range ids {
+		if c, ok := m.card(set, id); ok {
+			known = append(known, c)
+		} else {
+			unknown = append(unknown, id)
+		}
+	}
+	if len(known) == 0 {
+		return nil
+	}
+	var out []PoolGroup
+	for _, g := range pool.Groups(known) {
+		lines := make([]string, len(g.Cards))
+		for i, c := range g.Cards {
+			lines[i] = c.Name
+			if cost := cards.Mana(c.ManaCost); cost != "" {
+				lines[i] += " · " + cost
+			}
+		}
+		out = append(out, poolGroup(heapName(g), lines))
+	}
+	if len(unknown) > 0 {
+		slices.Sort(unknown)
+		lines := make([]string, len(unknown))
+		for i, id := range unknown {
+			lines[i] = cards.Unnamed(id)
+		}
+		out = append(out, poolGroup("Details not known", lines))
+	}
+	return out
+}
+
+// poolGroup is a heap headed name, its lines one per card in order, with
+// copies of a card (the same line, so the same name and cost: two prints
+// of a card are one card to a deck) folded into one. The heap's order keeps
+// copies next to each other.
+func poolGroup(name string, lines []string) PoolGroup {
+	g := PoolGroup{Heading: fmt.Sprintf("%s (%d)", name, len(lines))}
+	for i := 0; i < len(lines); {
+		j := i + 1
+		for j < len(lines) && lines[j] == lines[i] {
+			j++
+		}
+		if n := j - i; n > 1 {
+			g.Cards = append(g.Cards, fmt.Sprintf("%d× %s", n, lines[i]))
+		} else {
+			g.Cards = append(g.Cards, lines[i])
+		}
+		i = j
+	}
+	return g
+}
+
+// heapName is how a heap of the pool is headed.
+func heapName(g pool.Group) string {
+	switch g.Heap {
+	case pool.Multicolour:
+		return "Multicolour"
+	case pool.Colourless:
+		return "Colourless"
+	case pool.Lands:
+		return "Lands"
+	}
+	return g.Colour.Name()
+}
