@@ -2,6 +2,7 @@ package app
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/nmcginn/mtga-draft-assistant/internal/arena"
@@ -179,5 +180,120 @@ func TestAWholeDraftFromTheFixtureIsCountedCardForCard(t *testing.T) {
 	sum := m.Apply(known).DraftScreen().Summary
 	if sum.Kinds != "42 creatures · 0 other spells" || sum.Colours != "G 42" || sum.Unknown != "" {
 		t.Errorf("summary %+v, want all 42 counted", sum)
+	}
+}
+
+// finished is a draft in FRA that ended with pool, its picks read as the
+// same cards in pack 1.
+func finished(pool ...int) Model {
+	return picking(pool...).Apply(DraftEvents{Events: []arena.Event{arena.DraftEnded{Pool: pool}}})
+}
+
+// headings is each group's heading, in order.
+func headings(gs []PoolGroup) []string {
+	out := make([]string, len(gs))
+	for i, g := range gs {
+		out[i] = g.Heading
+	}
+	return out
+}
+
+func TestAFinishedPoolIsGroupedByColourWithItsCardsUpTheCurve(t *testing.T) {
+	s := finished(2, 8, 1, 3, 9, 11, 4, 6, 10, 7, 12, 5).Apply(fraPool).DraftScreen()
+	want := []PoolGroup{
+		// Black has two of its own and the gold knight, green three: level,
+		// they keep WUBRG order.
+		{Heading: "Black (2)", Cards: []string{"Ashen Courier · 1B", "Hollow Titan · 7B"}},
+		{Heading: "Green (3)", Cards: []string{"Thornwood Scout · G", "Gilded Pathfinder · 1G", "Verdant Oathkeeper · 2GG"}},
+		{Heading: "Blue (1)", Cards: []string{"Tidecaller's Riddle · 1U"}},
+		{Heading: "Red (1)", Cards: []string{"Ember Litany · XR"}},
+		{Heading: "Multicolour (1)", Cards: []string{"Duskmarch Paladin · (W/B)(W/B)"}},
+		{Heading: "Colourless (2)", Cards: []string{"Free Trinket · 0", "Gale Lantern · 2"}},
+		{Heading: "Lands (2)", Cards: []string{"Forest", "Mossback Pathway"}},
+	}
+	if !slices.EqualFunc(s.Pool, want, func(a, b PoolGroup) bool { return a.Heading == b.Heading && slices.Equal(a.Cards, b.Cards) }) {
+		t.Errorf("pool grouped as\n%q\nwant\n%q", s.Pool, want)
+	}
+	if s.Picks != nil {
+		t.Errorf("picks %q listed beside the grouped pool", s.Picks)
+	}
+}
+
+func TestTheGroupsLeadWithTheColoursTheSummaryLeadsWith(t *testing.T) {
+	s := finished(1, 2, 8, 3, 9, 11).Apply(fraPool).DraftScreen()
+	if got := headings(s.Pool); !slices.Equal(got, []string{"Green (3)", "Black (2)", "Blue (1)"}) {
+		t.Errorf("groups %q under %q, want green, black, blue", got, s.Summary.Colours)
+	}
+	if !strings.HasPrefix(s.Summary.Colours, "G 3 · B 2") {
+		t.Errorf("summary %q, want it to lead green then black", s.Summary.Colours)
+	}
+}
+
+func TestCopiesOfACardInThePoolShareALine(t *testing.T) {
+	s := finished(8, 2, 8, 8).Apply(fraPool).DraftScreen()
+	if len(s.Pool) != 1 || s.Pool[0].Heading != "Green (4)" ||
+		!slices.Equal(s.Pool[0].Cards, []string{"3× Gilded Pathfinder · 1G", "Verdant Oathkeeper · 2GG"}) {
+		t.Errorf("pool %q, want four green cards on two lines", s.Pool)
+	}
+}
+
+func TestPoolCardsWithNoDetailsAreGroupedLastByID(t *testing.T) {
+	s := finished(106440, 8, 106439, 106440).Apply(fraPool).DraftScreen()
+	if got := headings(s.Pool); !slices.Equal(got, []string{"Green (1)", "Details not known (3)"}) {
+		t.Fatalf("groups %q, want green, then the unknown cards", got)
+	}
+	if got := s.Pool[1].Cards; !slices.Equal(got, []string{"Card 106439", "2× Card 106440"}) {
+		t.Errorf("unknown cards %q, want them by id with copies together", got)
+	}
+	if s.Summary.Unknown == "" {
+		t.Error("the summary does not say cards are left out of its counts")
+	}
+}
+
+func TestAPoolIsListedByPackUntilItsCardsArriveThenGrouped(t *testing.T) {
+	m := finished(1, 2, 3).Apply(CardsFetching{Set: "FRA"})
+	if s := m.DraftScreen(); s.Pool != nil || !slices.Equal(s.Picks, []string{"Pack 1: Card 1, Card 2, Card 3"}) {
+		t.Fatalf("while fetching: pool %q, picks %q; want the pool by pack, by id", s.Pool, s.Picks)
+	}
+	s := m.Apply(fraPool).DraftScreen()
+	if got := headings(s.Pool); !slices.Equal(got, []string{"Green (2)", "Black (1)"}) || s.Picks != nil {
+		t.Errorf("after the set arrived: groups %q, picks %q; want the pool grouped", got, s.Picks)
+	}
+}
+
+func TestAPoolOfASetScryfallHasNotGotIsListedByPack(t *testing.T) {
+	// A set loaded, but none of the pool in it: brand new cards, say.
+	m := finished(106439, 106440).Apply(fraPool)
+	if s := m.DraftScreen(); s.Pool != nil || len(s.Picks) != 1 {
+		t.Errorf("pool %q, picks %q; want the unknown pool by pack", s.Pool, s.Picks)
+	}
+}
+
+func TestTheWholePoolIsGroupedEvenWhenTheLogMissedSomePicks(t *testing.T) {
+	// One pick read, three cards in the pool: the pool is what is grouped.
+	m := picking(1).Apply(DraftEvents{Events: []arena.Event{arena.DraftEnded{Pool: []int{1, 2, 7}}}}).Apply(fraPool)
+	if got := headings(m.DraftScreen().Pool); !slices.Equal(got, []string{"Green (2)", "Lands (1)"}) {
+		t.Errorf("groups %q, want the whole pool", got)
+	}
+}
+
+func TestThePoolIsNotGroupedWhileTheDraftIsOnOrWhenItIsEmpty(t *testing.T) {
+	if s := picking(1, 2).Apply(fraPool).DraftScreen(); s.Pool != nil {
+		t.Errorf("mid-draft, pool grouped as %q", s.Pool)
+	}
+	if s := finished().Apply(fraPool).DraftScreen(); s.Pool != nil || s.Picks != nil {
+		t.Errorf("an empty pool: groups %q, picks %q", s.Pool, s.Picks)
+	}
+}
+
+func TestAWholeDraftFromTheFixtureIsGroupedCardForCard(t *testing.T) {
+	m := read(following(), fixtureLines(t, premierFixture), 500)
+	known := CardsLoaded{Set: m.Draft.Set}
+	for _, id := range m.Draft.Pool {
+		known.Cards = append(known.Cards, cards.Card{ArenaID: id, Set: m.Draft.Set, Name: "Bear", ManaCost: "{1}{G}", TypeLine: "Creature — Bear"})
+	}
+	s := m.Apply(known).DraftScreen()
+	if len(s.Pool) != 1 || s.Pool[0].Heading != "Green (42)" || !slices.Equal(s.Pool[0].Cards, []string{"42× Bear · 1G"}) {
+		t.Errorf("pool %q, want 42 green bears on one line", s.Pool)
 	}
 }

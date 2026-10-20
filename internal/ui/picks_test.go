@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/go-gui-org/go-gui/gui"
@@ -209,5 +210,72 @@ func TestWideningTheWindowMovesThePicksBesideThePack(t *testing.T) {
 	}
 	if find(w.TestRender(nil), "draft-beside") == nil {
 		t.Error("after widening to 1000px the picks are still under the pack")
+	}
+}
+
+// finishedPool is a draft that ended with a pool of the first pack's
+// named cards, two of the green two-drop, and the one Scryfall does not
+// know, with FRA's cards known.
+func finishedPool() app.Model {
+	pool := []int{106325, 106235, 106268, 106407, 106335, 106321, 106391, 106453, 106453, 106439}
+	return drafting(premierStart, firstPack, arena.DraftEnded{Pool: pool}).Apply(fraCards)
+}
+
+func TestAFinishedDraftLaysItsPoolOutByColour(t *testing.T) {
+	_, got := render(t, finishedPool(), defaultWidth, defaultHeight)
+	want := []string{
+		"Your pool (10 cards)",
+		"Green (4)", "Thornwood Scout · G", "2× Gilded Pathfinder · 1G", "Verdant Oathkeeper · 2GG",
+		"Black (1)", "Ashen Courier · 1B",
+		"Red (1)", "Ember Litany · XR",
+		"Multicolour (1)", "Duskmarch Paladin · (W/B)(W/B)",
+		"Colourless (1)", "Gale Lantern · 2",
+		"Lands (1)", "Mossback Pathway",
+		"Details not known (1)", "Card 106439",
+	}
+	last := -1
+	for _, w := range want {
+		i := slices.Index(got, w)
+		if i < 0 {
+			t.Errorf("window shows %q, missing %q", got, w)
+			continue
+		}
+		if i < last {
+			t.Errorf("window shows %q, want %q after what comes before it", got, w)
+		}
+		last = i
+	}
+	if slices.ContainsFunc(got, func(s string) bool { return strings.HasPrefix(s, "Pack 1: ") }) {
+		t.Errorf("window shows %q, still listing the pool by pack", got)
+	}
+}
+
+func TestThePoolsHeapsAreLabelledAndItsCardsReadAsCards(t *testing.T) {
+	custom := Dark
+	custom.Text = gui.Hex(0x654321)
+	custom.TextMuted = gui.Hex(0x112233)
+	w := gui.NewTestWindow(t, gui.WindowCfg{State: &state{model: finishedPool(), theme: custom}})
+	ly := w.TestRender(mainView)
+	for id, want := range map[string]gui.Color{
+		"draft-pool-0-heading": custom.TextMuted, "draft-pool-0-0": custom.Text,
+		"draft-pool-6-heading": custom.TextMuted, "draft-pool-6-0": custom.Text,
+	} {
+		if s := find(ly, id); s == nil || s.TC == nil || s.TC.TextStyle.Color != want {
+			t.Errorf("%s is not in the theme's colour", id)
+		}
+	}
+	if find(ly, "draft-pool-7") != nil {
+		t.Error("a heap past the seven the pool has")
+	}
+}
+
+func TestThePoolFitsATinyWindowWithoutLosingCards(t *testing.T) {
+	for _, size := range [][2]int{{1, 1}, {minWidth, minHeight}, {1600, 900}} {
+		_, got := render(t, finishedPool(), size[0], size[1])
+		for _, want := range []string{"Green (4)", "Verdant Oathkeeper · 2GG", "Lands (1)", "Card 106439"} {
+			if !slices.Contains(got, want) {
+				t.Errorf("at %dx%d the window shows %q, missing %q", size[0], size[1], got, want)
+			}
+		}
 	}
 }

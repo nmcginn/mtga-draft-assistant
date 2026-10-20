@@ -144,6 +144,9 @@ func picksView(d app.DraftScreen, t Theme, beside bool) gui.View {
 			picks = append(picks, text("draft-summary-unknown", sum.Unknown, t.note()))
 		}
 	}
+	if len(d.Pool) > 0 {
+		picks = append(picks, poolView(d.Pool, t))
+	}
 	for i, p := range d.Picks {
 		picks = append(picks, text(fmt.Sprintf("draft-picks-%d", i), p, t.note()))
 	}
@@ -157,6 +160,43 @@ func picksView(d app.DraftScreen, t Theme, beside bool) gui.View {
 		Width:   panelWidth,
 		Padding: gui.NewPadding(0, 0, 0, 0),
 		Content: []gui.View{v},
+	})
+}
+
+// A finished draft's pool is laid out in columns of poolColumn, one for each
+// heap, that wrap with the window: two abreast at its default width, one at
+// its narrowest, and more as it widens (decision 30).
+const poolColumn = 176
+
+// poolView is a finished draft's pool, one column for each of its heaps:
+// the heap's name and count over its cards, a card to a line. Its cards
+// are the cards the user builds from, so they are in the body's style, and
+// the heading in the label's, as over the pack.
+func poolView(groups []app.PoolGroup, t Theme) gui.View {
+	cols := make([]gui.View, len(groups))
+	for i, g := range groups {
+		id := fmt.Sprintf("draft-pool-%d", i)
+		content := make([]gui.View, 0, len(g.Cards)+1)
+		content = append(content, text(id+"-heading", g.Heading, t.label()))
+		for j, c := range g.Cards {
+			content = append(content, text(fmt.Sprintf("%s-%d", id, j), c, t.body()))
+		}
+		cols[i] = gui.Column(gui.ContainerCfg{
+			ID:      id,
+			Sizing:  gui.FixedFit,
+			Width:   poolColumn,
+			Spacing: gui.SpacingTight,
+			Padding: gui.NewPadding(4, 0, 4, 0),
+			Content: content,
+		})
+	}
+	return gui.Row(gui.ContainerCfg{
+		ID:      "draft-pool",
+		Sizing:  gui.FillFit,
+		Wrap:    true,
+		Spacing: gui.SpacingMedium,
+		Padding: gui.NewPadding(0, 0, 0, 0),
+		Content: cols,
 	})
 }
 
