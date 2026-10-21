@@ -58,7 +58,15 @@ func (m Model) picksSummary(set string, ids []int) *PicksSummary {
 		out.Unknown = fmt.Sprintf("Leaves out %d cards whose details aren't known.", missing)
 	}
 
-	s := pool.Summarize(known)
+	sum := summarize(known)
+	sum.Unknown = out.Unknown
+	return sum
+}
+
+// summarize counts up cs, every one of whose details are known.
+func summarize(cs []cards.Card) *PicksSummary {
+	out := &PicksSummary{}
+	s := pool.Summarize(cs)
 	out.Kinds = kindsLine(s)
 	if s.Spells() == 0 {
 		return out

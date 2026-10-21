@@ -387,3 +387,26 @@ are 176 px columns that wrap, two abreast at the default width. While no
 card of the pool is known, nothing can be grouped, so the pool is listed by
 pack as before.
 
+### 31. The build: a suggestion until the player chooses, copied as text
+
+Once the draft ends, a deck is built under the pool. It starts in the
+pool's two leading colours (decision 28's order) with a suggestion: of
+the spells those colours can cast (every coloured symbol of the front
+face payable; a hybrid by either half, a Phyrexian one by life), 23 taken
+the rarest first, then creatures, then the cheapest, and 17 basic lands
+shared by the deck's coloured symbols by largest remainder, each colour
+asked for getting at least one. Rarity stands in until there are ratings;
+the ratings task ranks by rating instead. The pool's own lands are left in
+the sideboard, since what a non-basic land makes is in rules text that is
+not stored. Until the player acts, the suggestion is worked out afresh, so
+card details arriving late still reach it; choosing colours starts a new
+suggestion, and a moved card or a changed basic makes the deck theirs,
+kept in `app.Model.Build` for that pool and dropped for the next draft's.
+Every card is a button that moves one copy; every change is a message
+through `ui.Post`. "Copy for Arena" puts the deck on the clipboard in the
+import format, `Deck`, a count and a name to a line, then `Sideboard` and
+the rest of the pool: names only, no set or collector number (not
+stored), each card by its front face's name, as Arena names a two-faced
+card. Cards whose details are not known are left out of both, and said
+to be. The deck's counts leave out the colours line: the chosen colours
+are the deck's, and a hybrid card would show a colour it does not play.

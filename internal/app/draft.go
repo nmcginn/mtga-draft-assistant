@@ -42,6 +42,10 @@ type DraftScreen struct {
 	// from (decision 30); nil before the draft ends, and while none of its
 	// cards' details are known, when Picks lists it instead.
 	Pool []PoolGroup
+	// Deck is the deck being built from a finished draft's pool
+	// (decision 31); nil before the draft ends, and while none of its
+	// cards' details are known.
+	Deck *DeckScreen
 	// Footnote is a smaller note under it all.
 	Footnote string
 }
@@ -91,6 +95,12 @@ func (m Model) DraftScreen() DraftScreen {
 			s.Picks = poolLines(*d, name)
 		}
 		s.Summary = m.picksSummary(d.Set, d.Pool)
+		s.Deck = m.deckScreen()
+		if s.Deck == nil && s.Summary != nil && s.Summary.Kinds == "" {
+			// Nothing of the pool is known yet: the deck is coming
+			// with the counts, and the window says so.
+			s.Summary.Unknown = "Colours, creatures, curve and a deck to build appear once the cards' details are known."
+		}
 		shown = d.Pool
 	} else {
 		if d.Pack > 0 {
