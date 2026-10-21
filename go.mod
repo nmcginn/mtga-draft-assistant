@@ -5,7 +5,7 @@ go 1.26.0
 
 // The exact toolchain `make check` and CI build, test and lint with, so a
 // result on a laptop is a result in CI (decision 2). `go` downloads it on demand.
-toolchain go1.26.9
+toolchain go1.26.10
 
 require (
 	github.com/go-gui-org/go-gui v0.86.0
