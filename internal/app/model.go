@@ -71,6 +71,9 @@ type Model struct {
 	// cannot; empty when they can.
 	ImageProblem string
 	ImageDir     string
+	// Build is the deck the player is making from a finished draft's
+	// pool: what they chose, over the suggestion (decision 31).
+	Build Build
 	// Failure is the first background task that stopped unexpectedly, or
 	// nil. It is kept until restart: the task is not running any more, so
 	// whatever it would have shown never will.
@@ -221,6 +224,8 @@ func (m Model) Apply(msg Msg) Model {
 		return m.applyCards(msg)
 	case ImageReady, ImageFailed, ImagesEvicted, ImageCacheUnavailable:
 		return m.applyImages(msg)
+	case DeckColourToggled, DeckCardMoved, DeckBasicChanged, DeckCopied:
+		return m.applyDeck(msg)
 	case TaskFailed:
 		if m.Failure != nil {
 			// The first failure is the one most likely to explain the rest.

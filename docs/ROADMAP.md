@@ -78,6 +78,8 @@ by rating, with card images, before the pick timer matters. macOS and Linux
     placeholder while the picture is coming.
   - A finished draft's pool is sorted by rating within each of its heaps
     (decision 30), best first, in place of up the curve.
+  - The suggested deck (decision 31) takes the best-rated spells its
+    colours can cast, in place of the rarest, and says so in its note.
   - 17lands is credited in the window.
   - Tests: ranking with ties and missing ratings; a stale rating is refreshed
     once; offline uses what is stored.
@@ -113,10 +115,19 @@ by rating, with card images, before the pick timer matters. macOS and Linux
 
 ### Milestone 2 — Building the deck
 
-- [ ] **Suggested colours.** The colour pairs whose best 23 playables rate
-  highest, with the reasoning shown (which cards carry it), not just an answer.
-- [ ] **A 40-card build.** A suggested 23 spells and 17 lands for the chosen
-  colours, editable, and copied to the clipboard in Arena's deck-import format.
+- [ ] **Suggested colours.** *Blocked on ratings, as above.* The colour
+  pairs whose best 23 playables rate highest, with the reasoning shown (which
+  cards carry it), not just an answer. Until then the build starts in the
+  pool's two leading colours (decision 31).
+- [ ] **Non-basic lands in the suggested build.** Read what mana each land
+  makes (Scryfall's `produced_mana`), store it, and have the suggestion
+  play the pool's lands in the chosen colours, counting them among the 17.
+  It changes the card schema, so every stored set is fetched once more.
+- [ ] **Needs human: paste a copied deck into Arena.** The export (decision
+  31) names cards only, a two-faced card by its front face, as Arena's own
+  export does; no session could check that Arena's import accepts it,
+  for an event's deck or a constructed one, or a split card's half-name.
+  Copy a built deck, import it, and say what Arena did with it.
 - [ ] **Sealed.** The same pool and build views for a sealed pool.
 
 ### Ideas, not yet scheduled
@@ -195,3 +206,8 @@ Each needs a decision from the maintainer before it becomes a task.
   lands, the pool's leading colours first, each heap up the curve with
   copies on one line, under the curve; by pack while no card is known.
   Sorting by rating moved into the ratings task. (30)
+- [x] A 40-card build under the pool: colours to choose (the pool's leading
+  two at first), a suggested 23 spells and 17 basic lands, cards moved
+  between deck and sideboard with a click, basics added and taken out, and
+  "Copy for Arena" in the deck-import format. Ranking by rating moved into
+  the ratings task. (31)

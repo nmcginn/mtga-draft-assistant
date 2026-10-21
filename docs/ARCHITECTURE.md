@@ -58,6 +58,11 @@ internal/
                        curve, creatures and other spells, lands (pure,
                        decision 28); and laid out in heaps by colour, up
                        the curve (decision 30). The picks panel shows it.
+  deck/                A deck built from a pool: what a choice of colours
+                       can cast, a suggested 23 spells and 17 basic lands
+                       split by mana symbols, and the deck in Arena's
+                       deck-import format (pure, decision 31). The deck
+                       section under a finished draft's pool shows it.
   startup/             Time to first frame: when each stage of startup
                        finished, and the one-line report -startup-time prints
                        (decision 19).
@@ -82,7 +87,7 @@ Three layers, and the boundaries are load-bearing:
 
 **Computation** — parsing log lines, joining cards to ratings, ranking a pack,
 every state transition. Pure functions over plain data: `app.Model.Apply`,
-`app.Model.Status`, `app.Model.DraftScreen`, `draft.Apply`, `pool.Summarize`, `pool.Groups`. All of it is
+`app.Model.Status`, `app.Model.DraftScreen`, `draft.Apply`, `pool.Summarize`, `pool.Groups`, `deck.Suggest`, `deck.Export`. All of it is
 tested directly.
 
 **I/O** — the log file, the cache database, the network. Confined to narrow

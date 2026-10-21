@@ -69,15 +69,15 @@ func (c Card) Colours() []Colour {
 // "{2}{G/U}" is "2G/U". Text outside braces is not a symbol.
 func symbolLetters(cost string) string {
 	var b strings.Builder
-	for _, sym := range symbols(cost) {
+	for _, sym := range Symbols(cost) {
 		b.WriteString(sym)
 	}
 	return b.String()
 }
 
-// symbols is the symbols of cost without their braces: "{2}{G/U}" is
+// Symbols is the symbols of cost without their braces: "{2}{G/U}" is
 // ["2", "G/U"]. A symbol left open is not read.
-func symbols(cost string) []string {
+func Symbols(cost string) []string {
 	var out []string
 	for {
 		open := strings.IndexByte(cost, '{')
@@ -103,7 +103,7 @@ func symbols(cost string) []string {
 func (c Card) ManaValue() int {
 	front, _, _ := strings.Cut(c.ManaCost, " // ")
 	total := 0
-	for _, sym := range symbols(front) {
+	for _, sym := range Symbols(front) {
 		best := 0
 		for part := range strings.SplitSeq(sym, "/") {
 			best = max(best, symbolValue(part))

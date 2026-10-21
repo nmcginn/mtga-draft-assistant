@@ -12,6 +12,9 @@ type Theme struct {
 	Subtle     gui.Color // quiet structure: the scrollbar thumb
 	Surface    gui.Color // a card waiting for its picture
 	Bar        gui.Color // a column of a chart: the picks' mana curve
+	Control    gui.Color // a button at rest
+	Hover      gui.Color // a button under the pointer, pressed or focused
+	Chosen     gui.Color // a button that is on: a colour the deck is in
 
 	HeadlineSize float32
 	BodySize     float32
@@ -29,6 +32,12 @@ var Dark = Theme{
 	// Quieter than the text, so the curve reads as a shape beside the
 	// pack without drawing the eye from it.
 	Bar: gui.Hex(0x5b7bb0),
+	// A button is a step up from a card's placeholder, and lighter again
+	// under the pointer. A chosen colour is the curve's hue, deep enough
+	// that the text on it keeps its contrast.
+	Control: gui.Hex(0x2c3038),
+	Hover:   gui.Hex(0x3a3e47),
+	Chosen:  gui.Hex(0x3d5a8a),
 
 	HeadlineSize: 22,
 	BodySize:     14,

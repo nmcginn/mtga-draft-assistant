@@ -8,8 +8,10 @@ with card images, so the strong picks stand out at a glance. Later, it helps you
 build the deck from what you drafted.
 
 > **Status: early.** It follows a Premier or Quick Draft and shows the pack
-> with card names and pictures, and your picks counted up beside it. Ratings,
-> and so the ranking, are not in yet. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> with card names and pictures, and your picks counted up beside it. Once the
+> draft ends, it suggests a 40-card deck from your pool, which you can change
+> and copy in Arena's deck-import format. Ratings, and so the ranking, are not
+> in yet. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## What it does, and what it doesn't
 

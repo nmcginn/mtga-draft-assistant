@@ -105,6 +105,9 @@ func draftView(d app.DraftScreen, t Theme, width int) gui.View {
 	default:
 		content = append(content, packView, picksView(d, t, false))
 	}
+	if d.Deck != nil {
+		content = append(content, deckView(d.Deck, t))
+	}
 	if d.Footnote != "" {
 		content = append(content, text("draft-footnote", d.Footnote, t.note()))
 	}
@@ -130,20 +133,7 @@ func text(id, s string, style gui.TextStyle) gui.View {
 // wide beside the pack, and the window's width under it.
 func picksView(d app.DraftScreen, t Theme, beside bool) gui.View {
 	picks := []gui.View{text("draft-picks-heading", d.PicksHeading, t.label())}
-	if sum := d.Summary; sum != nil {
-		if sum.Colours != "" {
-			picks = append(picks, text("draft-summary-colours", sum.Colours, t.body()))
-		}
-		if sum.Kinds != "" {
-			picks = append(picks, text("draft-summary-kinds", sum.Kinds, t.body()))
-		}
-		if len(sum.Curve) > 0 {
-			picks = append(picks, curveView(sum.Curve, t))
-		}
-		if sum.Unknown != "" {
-			picks = append(picks, text("draft-summary-unknown", sum.Unknown, t.note()))
-		}
-	}
+	picks = append(picks, summaryViews("draft", d.Summary, t)...)
 	if len(d.Pool) > 0 {
 		picks = append(picks, poolView(d.Pool, t))
 	}
@@ -200,22 +190,45 @@ func poolView(groups []app.PoolGroup, t Theme) gui.View {
 	})
 }
 
+// summaryViews are the lines of a summary, the picks' or the deck's, under
+// IDs that start with prefix: the colours, the kinds, the curve, and what
+// was left out.
+func summaryViews(prefix string, sum *app.PicksSummary, t Theme) []gui.View {
+	if sum == nil {
+		return nil
+	}
+	var out []gui.View
+	if sum.Colours != "" {
+		out = append(out, text(prefix+"-summary-colours", sum.Colours, t.body()))
+	}
+	if sum.Kinds != "" {
+		out = append(out, text(prefix+"-summary-kinds", sum.Kinds, t.body()))
+	}
+	if len(sum.Curve) > 0 {
+		out = append(out, curveView(prefix+"-curve", sum.Curve, t))
+	}
+	if sum.Unknown != "" {
+		out = append(out, text(prefix+"-summary-unknown", sum.Unknown, t.note()))
+	}
+	return out
+}
+
 // curveView is the mana curve as columns: each with its count over it and
 // its mana value under it, the tallest curveHeight high, the others in
 // proportion, so the shape reads at a glance and the numbers on a second
 // look. A mana value with no spells has its count and no column.
-func curveView(curve []app.CurveColumn, t Theme) gui.View {
+func curveView(id string, curve []app.CurveColumn, t Theme) gui.View {
 	most := 0
 	for _, c := range curve {
 		most = max(most, c.Count)
 	}
 	cols := make([]gui.View, len(curve))
 	for i, c := range curve {
-		id := fmt.Sprintf("draft-curve-%d", i)
-		content := []gui.View{gui.Text(gui.TextCfg{ID: id + "-count", Text: fmt.Sprint(c.Count), TextStyle: t.note()})}
+		col := fmt.Sprintf("%s-%d", id, i)
+		content := []gui.View{gui.Text(gui.TextCfg{ID: col + "-count", Text: fmt.Sprint(c.Count), TextStyle: t.note()})}
 		if c.Count > 0 {
 			content = append(content, gui.Column(gui.ContainerCfg{
-				ID:      id + "-bar",
+				ID:      col + "-bar",
 				Sizing:  gui.FixedFixed,
 				Width:   curveColumn - 8,
 				Height:  max(2, float32(curveHeight*c.Count)/float32(most)),
@@ -224,9 +237,9 @@ func curveView(curve []app.CurveColumn, t Theme) gui.View {
 				Padding: gui.NewPadding(0, 0, 0, 0),
 			}))
 		}
-		content = append(content, gui.Text(gui.TextCfg{ID: id + "-label", Text: c.Label, TextStyle: t.note()}))
+		content = append(content, gui.Text(gui.TextCfg{ID: col + "-label", Text: c.Label, TextStyle: t.note()}))
 		cols[i] = gui.Column(gui.ContainerCfg{
-			ID:      id,
+			ID:      col,
 			Sizing:  gui.FixedFit,
 			Width:   curveColumn,
 			HAlign:  gui.HAlignCenter,
@@ -237,7 +250,7 @@ func curveView(curve []app.CurveColumn, t Theme) gui.View {
 		})
 	}
 	return gui.Row(gui.ContainerCfg{
-		ID:      "draft-curve",
+		ID:      id,
 		Sizing:  gui.FitFit,
 		VAlign:  gui.VAlignBottom,
 		Spacing: gui.SpacingSmall,

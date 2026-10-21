@@ -64,7 +64,7 @@ func Groups(cs []cards.Card) []Group {
 		if len(cs) == 0 {
 			return
 		}
-		slices.SortStableFunc(cs, byCurveThenName)
+		slices.SortStableFunc(cs, ByCurveThenName)
 		out = append(out, Group{Heap: h, Colour: col, Cards: cs})
 	}
 	for _, col := range order {
@@ -76,9 +76,9 @@ func Groups(cs []cards.Card) []Group {
 	return out
 }
 
-// byCurveThenName orders a heap: cheapest first, then by name. The Arena id
+// ByCurveThenName orders a heap: cheapest first, then by name. The Arena id
 // last keeps two prints of one name in the same order every time.
-func byCurveThenName(a, b cards.Card) int {
+func ByCurveThenName(a, b cards.Card) int {
 	return cmp.Or(
 		cmp.Compare(a.ManaValue(), b.ManaValue()),
 		cmp.Compare(a.Name, b.Name),
