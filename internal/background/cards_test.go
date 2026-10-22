@@ -162,11 +162,11 @@ func TestAFailedRefreshKeepsTheStoredCardsAndSaysNothing(t *testing.T) {
 	}
 	_ = st.Close()
 	src := &fakeSource{answers: []answer{{err: &fetch.HostError{Host: scryfall.Host}}}}
-	post, next := collectQuietly(t)
+	post, arrive, next := collectQuietly(t)
 	c := NewCards(cardSetup(dir, src))
 	c.Start(t.Context(), post)
 	c.Want("FRA")
-	if m := expect[app.CardsLoaded](t, func() app.Msg { m, _ := next(); return m }); len(m.Cards) != 1 {
+	if m := expect[app.CardsLoaded](t, arrive); len(m.Cards) != 1 {
 		t.Errorf("loaded %+v", m)
 	}
 	quiet(t, next)
@@ -234,15 +234,12 @@ func TestTheDefaultRetriesBackOffToFiveMinutes(t *testing.T) {
 
 func TestTheSameSetWantedAgainIsNotFetchedAgain(t *testing.T) {
 	src := &fakeSource{answers: []answer{{cards: []cards.Card{oathkeeper}}}}
-	post, next := collectQuietly(t)
+	post, arrive, next := collectQuietly(t)
 	c := NewCards(cardSetup(t.TempDir(), src))
 	c.Start(t.Context(), post)
 	c.Want("FRA")
-	for range 2 { // fetching, loaded
-		if _, ok := next(); !ok {
-			t.Fatal("FRA was not fetched")
-		}
-	}
+	expect[app.CardsFetching](t, arrive)
+	expect[app.CardsLoaded](t, arrive)
 	c.Want("FRA")
 	quiet(t, next)
 	// Another set, then FRA again before the task looks: FRA is the one
@@ -323,7 +320,7 @@ func TestACorruptCacheIsReportedAndTheCardsStillArrive(t *testing.T) {
 func TestNothingIsFetchedOrOpenedUntilADraftNeedsASet(t *testing.T) {
 	src := &fakeSource{answers: []answer{{}}}
 	dir := filepath.Join(t.TempDir(), "cache")
-	post, next := collectQuietly(t)
+	post, _, next := collectQuietly(t)
 	NewCards(cardSetup(dir, src)).Start(t.Context(), post)
 	quiet(t, next)
 	if got := src.asked(); len(got) != 0 {
@@ -338,13 +335,11 @@ func TestOnceTheWindowClosesTheCardTaskStops(t *testing.T) {
 	block := make(chan struct{})
 	src := &blockingSource{release: block}
 	ctx, cancel := context.WithCancel(t.Context())
-	post, next := collectQuietly(t)
+	post, arrive, next := collectQuietly(t)
 	c := NewCards(cardSetup(t.TempDir(), src))
 	c.Start(ctx, post)
 	c.Want("FRA")
-	if m, _ := next(); m == nil {
-		t.Fatal("never started fetching")
-	}
+	expect[app.CardsFetching](t, arrive)
 	cancel()
 	close(block)
 	quiet(t, next)
@@ -363,12 +358,26 @@ func (b *blockingSource) Set(ctx context.Context, _ string) ([]cards.Card, error
 	}
 }
 
-// collectQuietly is collect for tests that expect silence: its next reports
-// whether anything arrived within 50 ms rather than failing.
-func collectQuietly(t *testing.T) (Post, func() (app.Msg, bool)) {
+// collectQuietly is collect for tests that expect silence too: arrive
+// waits for a message as collect's next does, up to 5 s, since opening the
+// cache and running its migrations under the race detector can take far
+// longer than a frame; next reports whether anything arrived within 50 ms,
+// rather than failing, and is only for asserting that nothing does.
+func collectQuietly(t *testing.T) (post Post, arrive func() app.Msg, next func() (app.Msg, bool)) {
 	t.Helper()
 	ch := make(chan app.Msg, 10)
-	return func(m app.Msg) { ch <- m }, func() (app.Msg, bool) {
+	post = func(m app.Msg) { ch <- m }
+	arrive = func() app.Msg {
+		t.Helper()
+		select {
+		case m := <-ch:
+			return m
+		case <-time.After(5 * time.Second):
+			t.Fatal("no message within 5s")
+			return nil
+		}
+	}
+	next = func() (app.Msg, bool) {
 		select {
 		case m := <-ch:
 			return m, true
@@ -376,6 +385,7 @@ func collectQuietly(t *testing.T) (Post, func() (app.Msg, bool)) {
 			return nil, false
 		}
 	}
+	return post, arrive, next
 }
 
 // scryfallServer serves testdata/scryfall's FRA pages, counting requests.
