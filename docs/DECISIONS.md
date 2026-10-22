@@ -410,3 +410,27 @@ stored), each card by its front face's name, as Arena names a two-faced
 card. Cards whose details are not known are left out of both, and said
 to be. The deck's counts leave out the colours line: the chosen colours
 are the deck's, and a hybrid card would show a colour it does not play.
+
+### 32. The pool's lands in the build: what they make, from Scryfall
+
+The suggested build plays the pool's non-basic lands that suit its colours,
+counted among the 17. What a land makes is Scryfall's `produced_mana`,
+stored with each card as its letters in WUBRG order with C last ("UG");
+reading it from rules text would be guessing. A land is played when it
+makes at least one of the deck's colours and either makes every one of
+them (a dual for this pair, a tri-land, a land of any colour) or none
+outside them (a land of one of its colours). A land whose other colour is
+off the deck is left out: as a source it is a worse basic, often one that
+enters tapped. Basic lands from the pool are left out, since Arena supplies
+basics; so are lands that make no mana themselves (a land that fetches
+one has no `produced_mana`), which the player adds by hand. If there are
+ever more than 17, those making more of the deck's colours go first. Each
+land takes the place of one basic, of the colour it makes with the most
+basics left, so a dual leaves both colours with as many sources as before
+and a splash's lone basic is not the one given up. The column is migration
+3, which marks every stored set as due, so each is fetched once more on
+its next draft, as for pictures (decision 27). Until then, or offline,
+the pool's lands make nothing as far as the build knows and stay in the
+sideboard, as before this decision. The sideboard lists the lands the
+colours can play after the spells they can cast. This replaces decision
+31's "the pool's own lands are left in the sideboard".

@@ -141,6 +141,10 @@ type card struct {
 	TypeLine string `json:"type_line"`
 	Rarity   string `json:"rarity"`
 	Images   images `json:"image_uris"`
+	// Produced is the mana the card can make, as symbols ("G", "C"),
+	// for the whole card: Scryfall gives it at the top even for a card
+	// with two faces. Absent for a card that makes none.
+	Produced []string `json:"produced_mana"`
 	Faces    []struct {
 		ManaCost string `json:"mana_cost"`
 		TypeLine string `json:"type_line"`
@@ -168,6 +172,7 @@ func (c card) card(set string) (cards.Card, bool) {
 		TypeLine: c.TypeLine,
 		Rarity:   c.Rarity,
 		ImageURL: imageURL(c.Images.Normal),
+		Produces: cards.Produced(c.Produced),
 	}
 	// A card with two faces printed on two sides has a picture of each
 	// and none of its own; its front is what Arena shows in a pack.

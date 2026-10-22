@@ -56,6 +56,12 @@ var migrations = []string{
 	// going without them until the weekly refresh.
 	`ALTER TABLE cards ADD COLUMN image_url TEXT NOT NULL DEFAULT '';
 	UPDATE sets SET fetched_at = 0;`,
+	// 3: the mana each card makes (decision 32), so the suggested build
+	// can play the pool's lands. Sets stored before it are marked as
+	// fetched long ago, as in step 2: the next draft of one shows it at
+	// once and fetches it again, once, for what its lands make.
+	`ALTER TABLE cards ADD COLUMN produced_mana TEXT NOT NULL DEFAULT '';
+	UPDATE sets SET fetched_at = 0;`,
 }
 
 // ErrNewerSchema is a cache written by a newer version of the assistant,
@@ -157,7 +163,7 @@ func (s *Store) Set(ctx context.Context, code string) (Set, bool, error) {
 		return Set{}, false, fmt.Errorf("reading %s from the cache: %w", code, err)
 	}
 	rows, err := s.db.QueryContext(ctx,
-		"SELECT arena_id, name, mana_cost, type_line, rarity, image_url FROM cards WHERE set_code = ? ORDER BY arena_id", code)
+		"SELECT arena_id, name, mana_cost, type_line, rarity, image_url, produced_mana FROM cards WHERE set_code = ? ORDER BY arena_id", code)
 	if err != nil {
 		return Set{}, false, fmt.Errorf("reading %s's cards from the cache: %w", code, err)
 	}
@@ -165,7 +171,7 @@ func (s *Store) Set(ctx context.Context, code string) (Set, bool, error) {
 	set := Set{Code: code, FetchedAt: time.Unix(fetched, 0)}
 	for rows.Next() {
 		c := cards.Card{Set: code}
-		if err := rows.Scan(&c.ArenaID, &c.Name, &c.ManaCost, &c.TypeLine, &c.Rarity, &c.ImageURL); err != nil {
+		if err := rows.Scan(&c.ArenaID, &c.Name, &c.ManaCost, &c.TypeLine, &c.Rarity, &c.ImageURL, &c.Produces); err != nil {
 			return Set{}, false, fmt.Errorf("reading %s's cards from the cache: %w", code, err)
 		}
 		set.Cards = append(set.Cards, c)
@@ -200,13 +206,13 @@ func (s *Store) SaveSet(ctx context.Context, code string, fetchedAt time.Time, c
 		return err
 	}
 	ins, err := tx.PrepareContext(ctx,
-		"INSERT OR REPLACE INTO cards (arena_id, set_code, name, mana_cost, type_line, rarity, image_url) VALUES (?, ?, ?, ?, ?, ?, ?)")
+		"INSERT OR REPLACE INTO cards (arena_id, set_code, name, mana_cost, type_line, rarity, image_url, produced_mana) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
 	defer func() { _ = ins.Close() }()
 	for _, c := range cs {
-		if _, err := ins.ExecContext(ctx, c.ArenaID, code, c.Name, c.ManaCost, c.TypeLine, c.Rarity, c.ImageURL); err != nil {
+		if _, err := ins.ExecContext(ctx, c.ArenaID, code, c.Name, c.ManaCost, c.TypeLine, c.Rarity, c.ImageURL, c.Produces); err != nil {
 			return err
 		}
 	}

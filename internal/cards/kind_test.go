@@ -92,3 +92,35 @@ func TestACardsKindIsReadFromItsFrontFacesTypes(t *testing.T) {
 		}
 	}
 }
+
+func TestTheManaACardMakesIsKeptInOneOrderWhateverTheSourceSays(t *testing.T) {
+	for _, tc := range []struct {
+		symbols []string
+		want    string
+	}{
+		{[]string{"G", "U"}, "UG"},
+		{[]string{"U", "G", "G"}, "UG"},
+		{[]string{"C"}, "C"},
+		{[]string{"C", "W", "U", "B", "R", "G"}, "WUBRGC"},
+		{[]string{"T", "", "g", "GU"}, ""}, // nothing that is one symbol
+		{nil, ""},
+	} {
+		if got := Produced(tc.symbols); got != tc.want {
+			t.Errorf("Produced(%q) = %q, want %q", tc.symbols, got, tc.want)
+		}
+	}
+}
+
+func TestTheColoursACardMakesLeaveOutColourlessMana(t *testing.T) {
+	for produces, want := range map[string][]Colour{
+		"UG":     {Blue, Green},
+		"C":      nil,
+		"GC":     {Green},
+		"WUBRGC": {White, Blue, Black, Red, Green},
+		"":       nil,
+	} {
+		if got := (Card{Produces: produces}).Makes(); !slices.Equal(got, want) {
+			t.Errorf("Makes for %q = %v, want %v", produces, got, want)
+		}
+	}
+}

@@ -119,10 +119,6 @@ by rating, with card images, before the pick timer matters. macOS and Linux
   pairs whose best 23 playables rate highest, with the reasoning shown (which
   cards carry it), not just an answer. Until then the build starts in the
   pool's two leading colours (decision 31).
-- [ ] **Non-basic lands in the suggested build.** Read what mana each land
-  makes (Scryfall's `produced_mana`), store it, and have the suggestion
-  play the pool's lands in the chosen colours, counting them among the 17.
-  It changes the card schema, so every stored set is fetched once more.
 - [ ] **Needs human: paste a copied deck into Arena.** The export (decision
   31) names cards only, a two-faced card by its front face, as Arena's own
   export does; no session could check that Arena's import accepts it,
@@ -211,3 +207,7 @@ Each needs a decision from the maintainer before it becomes a task.
   between deck and sideboard with a click, basics added and taken out, and
   "Copy for Arena" in the deck-import format. Ranking by rating moved into
   the ratings task. (31)
+- [x] Non-basic lands in the suggested build: Scryfall's `produced_mana`
+  stored with each card (every stored set fetched once more), and the
+  pool's lands that make the deck's colours played among the 17 in place
+  of basics. (32)

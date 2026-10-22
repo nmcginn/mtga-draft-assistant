@@ -18,12 +18,12 @@ var fraPool = CardsLoaded{Set: "FRA", Cards: []cards.Card{
 	{ArenaID: 4, Set: "FRA", Name: "Duskmarch Paladin", ManaCost: "{W/B}{W/B}", TypeLine: "Creature — Human Knight"},
 	{ArenaID: 5, Set: "FRA", Name: "Ember Litany", ManaCost: "{X}{R}", TypeLine: "Sorcery"},
 	{ArenaID: 6, Set: "FRA", Name: "Gale Lantern", ManaCost: "{2}", TypeLine: "Artifact"},
-	{ArenaID: 7, Set: "FRA", Name: "Mossback Pathway", TypeLine: "Land"},
+	{ArenaID: 7, Set: "FRA", Name: "Mossback Pathway", TypeLine: "Land", Produces: "UG"},
 	{ArenaID: 8, Set: "FRA", Name: "Gilded Pathfinder", ManaCost: "{1}{G}", TypeLine: "Creature — Elf Ranger"},
 	{ArenaID: 9, Set: "FRA", Name: "Hollow Titan", ManaCost: "{7}{B}", TypeLine: "Creature — Horror"},
 	{ArenaID: 10, Set: "FRA", Name: "Free Trinket", ManaCost: "{0}", TypeLine: "Artifact"},
 	{ArenaID: 11, Set: "FRA", Name: "Tidecaller's Riddle", ManaCost: "{1}{U}", TypeLine: "Instant"},
-	{ArenaID: 12, Set: "FRA", Name: "Forest", TypeLine: "Basic Land — Forest"},
+	{ArenaID: 12, Set: "FRA", Name: "Forest", TypeLine: "Basic Land — Forest", Produces: "G"},
 }}
 
 // picking is a draft in FRA with ids picked in pack 1, in order.

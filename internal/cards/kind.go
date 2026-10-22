@@ -141,3 +141,32 @@ func (c Card) Kind() Kind {
 	}
 	return OtherSpell
 }
+
+// Makes is which colours of mana c can make, in WUBRG order: none for a
+// card that makes only colourless mana, or none at all.
+func (c Card) Makes() []Colour {
+	var out []Colour
+	for _, col := range Colours {
+		if strings.Contains(c.Produces, col.Letter()) {
+			out = append(out, col)
+		}
+	}
+	return out
+}
+
+// producedLetters are the symbols a card can make mana of, in the order
+// Produces keeps them.
+const producedLetters = colourLetters + "C"
+
+// Produced is a source's list of mana symbols a card can make (["G",
+// "U"]) as Produces keeps them: "UG". Anything that is not one of the
+// six symbols is dropped, and each is kept once.
+func Produced(symbols []string) string {
+	var b strings.Builder
+	for _, l := range producedLetters {
+		if slices.Contains(symbols, string(l)) {
+			b.WriteRune(l)
+		}
+	}
+	return b.String()
+}

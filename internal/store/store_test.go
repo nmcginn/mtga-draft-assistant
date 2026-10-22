@@ -16,7 +16,7 @@ var (
 	fetched = time.Date(2026, 10, 16, 3, 0, 0, 0, time.UTC)
 	elf     = cards.Card{ArenaID: 106325, Set: "FRA", Name: "Verdant Oathkeeper", ManaCost: "{2}{G}{G}", TypeLine: "Creature — Elf Druid", Rarity: "uncommon",
 		ImageURL: "https://cards.scryfall.io/normal/front/0/0/106325.jpg?1759190400"}
-	forest = cards.Card{ArenaID: 106485, Set: "FRA", Name: "Forest", TypeLine: "Basic Land — Forest", Rarity: "common"}
+	forest = cards.Card{ArenaID: 106485, Set: "FRA", Name: "Forest", TypeLine: "Basic Land — Forest", Rarity: "common", Produces: "G"}
 )
 
 func open(t *testing.T, dir string) *Store {
@@ -255,10 +255,58 @@ func TestACacheFromBeforePicturesKeepsItsCardsAndIsFetchedAgainForThem(t *testin
 	if err != nil || !ok {
 		t.Fatalf("Set = %v, %v", ok, err)
 	}
-	if len(got.Cards) != 1 || got.Cards[0] != forest {
+	if want := (cards.Card{ArenaID: 106485, Set: "FRA", Name: "Forest", TypeLine: "Basic Land — Forest", Rarity: "common"}); len(got.Cards) != 1 || got.Cards[0] != want {
 		t.Errorf("the upgraded cache holds %+v, want the Forest as it was, with no picture", got.Cards)
 	}
 	if !got.FetchedAt.Equal(time.Unix(0, 0)) {
 		t.Errorf("the upgraded set was fetched at %v, want it marked as due for fetching again", got.FetchedAt)
+	}
+}
+
+func TestACacheFromBeforeProducedManaKeepsItsCardsAndIsFetchedAgainForIt(t *testing.T) {
+	// A cache written by the version before the build played the pool's
+	// lands: its lands make nothing as far as it knows, so the upgrade
+	// marks its sets as due, or the suggestion would leave them out until
+	// the weekly refresh.
+	dir := t.TempDir()
+	db, err := sql.Open("sqlite", dsn(filepath.Join(dir, FileName)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		migrations[0],
+		migrations[1],
+		"PRAGMA user_version = 2",
+		"INSERT INTO sets (code, fetched_at) VALUES ('FRA', 1760583600)",
+		"INSERT INTO cards (arena_id, set_code, name, mana_cost, type_line, rarity, image_url) VALUES (106485, 'FRA', 'Forest', '', 'Basic Land — Forest', 'common', 'https://cards.scryfall.io/normal/front/0/0/106485.jpg')",
+	} {
+		if _, err := db.ExecContext(t.Context(), q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	s := open(t, dir)
+	got, ok, err := s.Set(t.Context(), "FRA")
+	if err != nil || !ok {
+		t.Fatalf("Set = %v, %v", ok, err)
+	}
+	want := cards.Card{ArenaID: 106485, Set: "FRA", Name: "Forest", TypeLine: "Basic Land — Forest", Rarity: "common",
+		ImageURL: "https://cards.scryfall.io/normal/front/0/0/106485.jpg"}
+	if len(got.Cards) != 1 || got.Cards[0] != want {
+		t.Errorf("the upgraded cache holds %+v, want the Forest as it was, making nothing yet", got.Cards)
+	}
+	if !got.FetchedAt.Equal(time.Unix(0, 0)) {
+		t.Errorf("the upgraded set was fetched at %v, want it marked as due for fetching again", got.FetchedAt)
+	}
+
+	// Fetched again, it keeps what its lands make.
+	if err := s.SaveSet(t.Context(), "FRA", fetched, []cards.Card{forest}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _, err := s.Set(t.Context(), "FRA"); err != nil || len(got.Cards) != 1 || got.Cards[0].Produces != "G" {
+		t.Errorf("after fetching again: %+v, %v; want the Forest making G", got.Cards, err)
 	}
 }

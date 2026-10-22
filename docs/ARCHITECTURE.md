@@ -39,8 +39,9 @@ internal/
                        time, retrying failures on their own schedule
                        (decision 27).
   cards/               A card's details as plain data (name, mana cost, type,
-                       rarity, picture address), keyed by Arena id, and how they read at a
-                       glance: "2GG · Creature — Elf Druid · Uncommon".
+                       rarity, picture address, the mana it makes), keyed
+                       by Arena id, and how they read at a glance:
+                       "2GG · Creature — Elf Druid · Uncommon".
   store/               The SQLite cache (decision 11): schema with
                        migrations, and reads and writes of sets and their
                        cards. Only reads and writes; staleness is the card
@@ -59,8 +60,9 @@ internal/
                        decision 28); and laid out in heaps by colour, up
                        the curve (decision 30). The picks panel shows it.
   deck/                A deck built from a pool: what a choice of colours
-                       can cast, a suggested 23 spells and 17 basic lands
-                       split by mana symbols, and the deck in Arena's
+                       can cast, a suggested 23 spells and 17 lands (the
+                       pool's on-colour lands, then basics split by mana
+                       symbols, decision 32), and the deck in Arena's
                        deck-import format (pure, decision 31). The deck
                        section under a finished draft's pool shows it.
   startup/             Time to first frame: when each stage of startup
@@ -153,7 +155,7 @@ too (decision 25). A host with no row here gets one request a second.
 
 | Host | What | When | Ceiling |
 | ---- | ---- | ---- | ------- |
-| `api.scryfall.com` | Cards in a set, by `arena_id` (`/cards/search`, `e:<set> game:arena`, every print) | First draft of a set; then at most weekly, or daily for a set Scryfall had no cards for | 1 request / 500 ms; a handful of pages per set, at most 20; offline, retried after 30 s doubling to every 5 min while that set is on screen |
+| `api.scryfall.com` | Cards in a set, by `arena_id` (`/cards/search`, `e:<set> game:arena`, every print) | First draft of a set; then at most weekly, or daily for a set Scryfall had no cards for; and once more on the next draft of each stored set after an upgrade stores a new field (pictures, decision 27; mana made, decision 32) | 1 request / 500 ms; a handful of pages per set, at most 20; offline, retried after 30 s doubling to every 5 min while that set is on screen |
 | `cards.scryfall.io` | Card images, `normal` size (decision 27) | First time a card is shown in a pack, then never again while it is on disk | 4 concurrent, 1 request / 100 ms; ~70 KB each, a pack ~1 MB; a failed picture retried after 30 s doubling to every 5 min while it is on screen |
 | `17lands.com` | Ratings for a set and format | First draft of a set; then at most once per 24 h | 1 request per set+format per day |
 | `17lands.com` | The user's chosen tier list | When chosen; then at most once per 24 h | 1 request per list per day |
@@ -167,7 +169,7 @@ costs no requests at all beyond the daily ratings check.
 Everything lives under `os.UserCacheDir()/mtga-draft-assistant` (decision 16):
 
 - `cache.db` — sets and their cards, with each card's picture address
-  (ratings to come). A set is a few hundred
+  and the mana it makes (ratings to come). A set is a few hundred
   rows of short text, tens of kilobytes. Opened only once a draft needs a
   set. If it cannot be created or read (a folder that cannot be written, a
   corrupt file, one from a newer version) the assistant works from memory,

@@ -119,6 +119,9 @@
       "mana_cost": "{2}{G}{G}",
       "type_line": "Creature — Elf Druid",
       "rarity": "uncommon",
+      "produced_mana": [
+        "G"
+      ],
       "image_uris": {
         "small": "https://cards.scryfall.io/small/front/0/0/00000000-0000-4000-8000-000000106325.jpg?1759190400",
         "normal": "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106325.jpg?1759190400",
