@@ -346,3 +346,53 @@ func exportCount(t *testing.T, s string) int {
 	}
 	return total
 }
+
+func TestAPoolLandMakingTheChosenColoursIsSuggestedAmongThe17(t *testing.T) {
+	// Blue and green: the pathway makes both, so it takes a basic's place.
+	m := wholePool().Apply(DeckColourToggled{Colour: cards.Black}).Apply(DeckColourToggled{Colour: cards.Blue})
+	s := m.DraftScreen().Deck
+	if chosen(s) != "UG" {
+		t.Fatalf("colours %q, want UG", chosen(s))
+	}
+	g := s.Groups[len(s.Groups)-1]
+	if g.Heading != "Lands (17)" || !slices.Equal(lines(g.Cards), []string{"Mossback Pathway"}) {
+		t.Errorf("lands %q %q, want the pathway among 17", g.Heading, lines(g.Cards))
+	}
+	if want := []DeckBasic{{cards.Blue, "4 Island"}, {cards.Green, "12 Forest"}}; !slices.Equal(s.Basics, want) {
+		t.Errorf("basics %+v beside the pathway, want %+v", s.Basics, want)
+	}
+	if !strings.Contains(s.Export, "1 Mossback Pathway\n") || strings.Contains(s.Export, "Sideboard\n1 Mossback Pathway") {
+		t.Errorf("export\n%s\nwant the pathway in the deck", s.Export)
+	}
+	// The pool's Forest is a basic: Arena supplies those, so it stays out.
+	if !slices.Contains(lines(s.Sideboard), "Forest") {
+		t.Errorf("sideboard %q, want the pool's Forest left in it", lines(s.Sideboard))
+	}
+	if !strings.Contains(s.Note, "the pool's that make only these colours' mana") {
+		t.Errorf("note %q, want it to say the pool's lands go in", s.Note)
+	}
+}
+
+func TestAPoolLandMakingAColourNotChosenIsLeftInTheSideboard(t *testing.T) {
+	// Black and green: the pathway's blue half is no use, and its green
+	// half is a Forest's.
+	s := wholePool().DraftScreen().Deck
+	if g := s.Groups[len(s.Groups)-1]; len(g.Cards) != 0 {
+		t.Errorf("lands %q, want only basics", lines(g.Cards))
+	}
+	if !slices.Contains(lines(s.Sideboard), "Mossback Pathway") {
+		t.Errorf("sideboard %q, want the pathway in it", lines(s.Sideboard))
+	}
+}
+
+func TestTheSideboardListsLandsTheColoursCanPlayAfterTheirSpells(t *testing.T) {
+	m := wholePool().Apply(DeckColourToggled{Colour: cards.Black}).Apply(DeckColourToggled{Colour: cards.Blue})
+	m = m.Apply(DeckCardMoved{Card: 7, ToDeck: false})
+	s := m.DraftScreen().Deck
+	// Tidecaller's Riddle, the one blue spell, is in the deck.
+	want := []string{"Mossback Pathway", "Ember Litany · XR", "Ashen Courier · 1B", "Duskmarch Paladin · (W/B)(W/B)",
+		"Hollow Titan · 7B", "Forest"}
+	if got := lines(s.Sideboard); !slices.Equal(got, want) {
+		t.Errorf("sideboard %q, want %q", got, want)
+	}
+}

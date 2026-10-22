@@ -109,7 +109,7 @@ func TestASetIsFetchedAcrossItsPagesByArenaID(t *testing.T) {
 		t.Errorf("got %d cards (%d ids), want the 13 with Arena ids", len(got), len(m))
 	}
 	want := cards.Card{ArenaID: 106325, Set: "FRA", Name: "Verdant Oathkeeper", ManaCost: "{2}{G}{G}", TypeLine: "Creature — Elf Druid", Rarity: "uncommon",
-		ImageURL: "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106325.jpg?1759190400"}
+		ImageURL: "https://cards.scryfall.io/normal/front/0/0/00000000-0000-4000-8000-000000106325.jpg?1759190400", Produces: "G"}
 	if m[106325] != want {
 		t.Errorf("106325 = %+v, want %+v", m[106325], want)
 	}
@@ -229,6 +229,24 @@ func TestALandHasNoManaCost(t *testing.T) {
 	}
 	if c := byID(got)[106485]; c.Name != "Forest" || c.ManaCost != "" || c.TypeLine != "Basic Land — Forest" {
 		t.Errorf("the basic land is %+v", c)
+	}
+}
+
+func TestTheManaACardMakesIsKeptInWUBRGOrderAndNoneWhenScryfallListsNone(t *testing.T) {
+	got, err := newServer(t, nil).source().Set(t.Context(), "FRA")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := byID(got)
+	for id, want := range map[int]string{
+		106391: "UG", // Mossback Pathway, which the page lists as G, U
+		106485: "G",  // Forest
+		106325: "G",  // Verdant Oathkeeper: a creature makes mana too
+		106385: "",   // Tidecaller's Riddle makes none, and has no field
+	} {
+		if c := m[id]; c.Produces != want {
+			t.Errorf("%s produces %q, want %q", c.Name, c.Produces, want)
+		}
 	}
 }
 

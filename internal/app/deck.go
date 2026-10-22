@@ -173,7 +173,7 @@ type DeckScreen struct {
 	// deck, with how many: "8 Forest".
 	Basics []DeckBasic
 	// SideboardHeading and Sideboard are the rest of the pool: what the
-	// colours can cast first, then the rest, each up the curve.
+	// colours can play first, then the rest, each up the curve.
 	SideboardHeading string
 	Sideboard        []DeckLine
 	// Unknown says that some of the pool cannot be built with, because
@@ -244,7 +244,8 @@ func (m Model) deckScreen() *DeckScreen {
 		s.Note = "Click a card to move it between the deck and the sideboard. Choosing colours again suggests a new deck."
 	default:
 		s.Note = fmt.Sprintf("Suggested from what these colours can cast: the rarest first, then creatures, "+
-			"then the cheapest, with %d basic lands shared by the colours' mana symbols. "+
+			"then the cheapest. Of %d lands, the pool's that make only these colours' mana, or all of them, "+
+			"go in first, and basic lands make up the rest, shared by the colours' mana symbols. "+
 			"Click a card to move it between the deck and the sideboard.", deck.Lands)
 	}
 	switch n := b.Deck.Count(); {
@@ -322,16 +323,19 @@ func (m Model) deckScreen() *DeckScreen {
 	return s
 }
 
-// sideRank puts the sideboard's cards the colours can cast first, then the
-// other spells, then the lands.
+// sideRank puts the sideboard's cards the colours can play first: the
+// spells they can cast, then the lands that make their mana. The other
+// spells come next, then the other lands.
 func sideRank(c cards.Card, colours deck.Colours) int {
 	switch {
 	case deck.Castable(c, colours):
 		return 0
+	case deck.OnColour(c, colours):
+		return 1
 	case c.Kind() == cards.Land:
-		return 2
+		return 3
 	}
-	return 1
+	return 2
 }
 
 // deckLines is cs a line each, copies of a card (the same Arena id) on one

@@ -164,7 +164,9 @@ func TestTheSuggestionTakesTheRarestThenCreaturesThenTheCheapest(t *testing.T) {
 	}
 }
 
-func TestTheSuggestionLeavesOutWhatTheColoursCannotCastAndTheLands(t *testing.T) {
+func TestTheSuggestionLeavesOutWhatTheColoursCannotCastAndALandThatMakesNothingKnown(t *testing.T) {
+	// bigPool's land has no Produces: a cache from before it was stored,
+	// or a land that makes no mana itself.
 	d := Suggest(bigPool(), colours(cards.Black, cards.Green))
 	if slices.Contains(d.Main, 204) || slices.Contains(d.Main, 205) {
 		t.Errorf("deck %v has the red rare or the land", d.Main)
@@ -290,5 +292,132 @@ func TestEachBasicLandIsNamedForItsColour(t *testing.T) {
 		if b.Name != want || b.Kind() != cards.Land {
 			t.Errorf("basic for %s is %+v", cards.Colour(c).Name(), b)
 		}
+	}
+}
+
+func land(id int, name, produces string) cards.Card {
+	return cards.Card{ArenaID: id, Name: name, TypeLine: "Land", Rarity: "uncommon", Produces: produces}
+}
+
+func TestALandIsPlayedWhenItMakesTheDecksColoursAndNoOthers(t *testing.T) {
+	bg := colours(cards.Black, cards.Green)
+	for _, tc := range []struct {
+		c    cards.Card
+		want bool
+	}{
+		{land(1, "Dual", "BG"), true},                    // both of the deck's colours
+		{land(1, "Utility", "G"), true},                  // one of them, nothing else
+		{land(1, "Utility with colourless", "GC"), true}, // colourless mana is no other colour
+		{land(1, "Rainbow", "WUBRG"), true},              // any colour includes both
+		{land(1, "Tri", "BRG"), true},                    // a dual for this deck, and more
+		{land(1, "Off dual", "UG"), false},               // half of it is off colour
+		{land(1, "Off colour", "R"), false},
+		{land(1, "Colourless", "C"), false}, // no source of either colour
+		{land(1, "Fetch", ""), false},       // makes nothing itself, or not known
+		{cards.Card{Name: "Forest", TypeLine: "Basic Land — Forest", Produces: "G"}, false},
+		{cards.Card{Name: "Snow-Covered Swamp", TypeLine: "Basic Snow Land — Swamp", Produces: "B"}, false},
+		{cards.Card{Name: "Llanowar Elder", ManaCost: "{G}", TypeLine: "Creature — Elf", Produces: "G"}, false},
+		{cards.Card{Name: "Spell // Land", ManaCost: "{1}{G}", TypeLine: "Sorcery // Land", Produces: "G"}, false},
+		{cards.Card{Name: "Land // Spell", TypeLine: "Land // Sorcery", Produces: "B"}, true}, // played as its front
+	} {
+		if got := OnColour(tc.c, bg); got != tc.want {
+			t.Errorf("OnColour(%s, makes %q) in BG = %v, want %v", tc.c.Name, tc.c.Produces, got, tc.want)
+		}
+	}
+}
+
+func TestInOneColourALandOfThatColourIsPlayed(t *testing.T) {
+	g := colours(cards.Green)
+	if !OnColour(land(1, "Dual", "UG"), g) {
+		t.Error("a land making green is not played in mono-green")
+	}
+	if OnColour(land(1, "Dual", "UB"), g) {
+		t.Error("a land making no green is played in mono-green")
+	}
+}
+
+func TestWithNoColoursChosenNoLandIsPlayed(t *testing.T) {
+	if OnColour(land(1, "Rainbow", "WUBRG"), Colours{}) {
+		t.Error("a land is played in a deck of no colours")
+	}
+	if d := Suggest([]cards.Card{land(1, "Rainbow", "WUBRG")}, Colours{}); len(d.Main) != 0 || d.Count() != 0 {
+		t.Errorf("no colours: %+v, want an empty deck", d)
+	}
+}
+
+func TestThePoolsLandsCountAmongThe17(t *testing.T) {
+	cs := append(bigPool(), land(300, "Duskmoss Grove", "BG"), land(301, "Thornhollow", "G"), land(302, "Tidal Mire", "UB"))
+	d := Suggest(cs, colours(cards.Black, cards.Green))
+	if !slices.Contains(d.Main, 300) || !slices.Contains(d.Main, 301) {
+		t.Errorf("deck %v leaves out the dual or the green land", d.Main)
+	}
+	if slices.Contains(d.Main, 302) {
+		t.Errorf("deck %v plays the blue-black land in black-green", d.Main)
+	}
+	if len(d.Main) != Spells+2 || d.Count() != Size {
+		t.Errorf("%d of the pool's cards and %d in all, want %d spells and 2 lands in %d", len(d.Main), d.Count(), Spells, Size)
+	}
+	without := Suggest(bigPool(), colours(cards.Black, cards.Green))
+	basics := 0
+	for _, n := range d.Basics {
+		basics += n
+	}
+	if basics != Lands-2 {
+		t.Errorf("%d basics beside 2 of the pool's lands, want %d", basics, Lands-2)
+	}
+	// The green land stands in for a Forest. The dual stands in for
+	// whichever colour had more basics; either way each colour keeps at
+	// least as many sources as it had.
+	if d.Basics[cards.Green]+2 < without.Basics[cards.Green] || d.Basics[cards.Black]+1 < without.Basics[cards.Black] {
+		t.Errorf("basics %v beside the lands, %v without: a colour lost a source", d.Basics, without.Basics)
+	}
+}
+
+func TestADualTakesTheBasicOfTheColourWithMoreToSpare(t *testing.T) {
+	split := [5]int{cards.White: 9, cards.Green: 8}
+	got := basicsBeside(split, []cards.Card{land(1, "Dual", "WG")}, colours(cards.White, cards.Green))
+	if want := ([5]int{cards.White: 8, cards.Green: 8}); got != want {
+		t.Errorf("basics %v, want a Plains given up: %v", got, want)
+	}
+	got = basicsBeside(split, []cards.Card{land(1, "Green", "G")}, colours(cards.White, cards.Green))
+	if want := ([5]int{cards.White: 9, cards.Green: 7}); got != want {
+		t.Errorf("basics %v, want a Forest given up for a green land: %v", got, want)
+	}
+}
+
+func TestALandOfASplashedColourDoesNotLeaveItWithoutABasicToGiveUp(t *testing.T) {
+	// A red splash has one Mountain; two red lands take its place and
+	// then a basic of the colour with most.
+	split := [5]int{cards.Black: 8, cards.Red: 1, cards.Green: 8}
+	brg := colours(cards.Black, cards.Red, cards.Green)
+	got := basicsBeside(split, []cards.Card{land(1, "Red one", "R"), land(2, "Red two", "R")}, brg)
+	if got[cards.Red] != 0 || got[cards.Black]+got[cards.Green] != 15 {
+		t.Errorf("basics %v, want no Mountain and 15 others", got)
+	}
+}
+
+func TestMoreOnColourLandsThanTheDeckHoldsPlaysThoseFixingMostFirst(t *testing.T) {
+	var cs []cards.Card
+	for i := range 20 {
+		cs = append(cs, land(i, fmt.Sprintf("Green land %02d", i), "G"))
+	}
+	cs = append(cs, land(99, "Zzz dual", "BG"))
+	d := Suggest(cs, colours(cards.Black, cards.Green))
+	if len(d.Main) != Lands || d.Basics != ([5]int{}) {
+		t.Errorf("deck %v with basics %v, want %d of the pool's lands and no basics", d.Main, d.Basics, Lands)
+	}
+	if !slices.Contains(d.Main, 99) {
+		t.Errorf("deck %v leaves out the dual for lands of one colour", d.Main)
+	}
+}
+
+func TestCopiesOfALandAreEachPlayed(t *testing.T) {
+	cs := []cards.Card{creature(1, "a", "{G}", "common"), land(2, "Dual", "BG"), land(2, "Dual", "BG")}
+	d := Suggest(cs, colours(cards.Black, cards.Green))
+	if want := []int{1, 2, 2}; !slices.Equal(d.Main, want) {
+		t.Errorf("deck %v, want both copies of the dual: %v", d.Main, want)
+	}
+	if d.Count() != 1+Lands {
+		t.Errorf("%d cards, want the spell and %d lands", d.Count(), Lands)
 	}
 }

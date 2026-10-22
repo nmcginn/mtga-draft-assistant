@@ -22,6 +22,11 @@ type Card struct {
 	// ImageURL is where the card's picture is, at the size the window
 	// shows (decision 12); empty when the source has none for it.
 	ImageURL string
+	// Produces is the mana the card can make, as the letters of its
+	// symbols in WUBRG order with C (colourless) last: "UG" for a land
+	// that taps for either, "" for a card that makes none, or whose
+	// source did not say (decision 32).
+	Produces string
 }
 
 // Detail is the line under a card's name: its mana cost, type, and rarity,

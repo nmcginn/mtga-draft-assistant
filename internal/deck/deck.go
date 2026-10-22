@@ -121,19 +121,21 @@ func Leading(cs []cards.Card) Colours {
 }
 
 // Suggest is a deck in colours from the cards of a pool (copies repeated):
-// up to Spells of the spells it can cast, and Lands basic lands split
-// between the colours. Until there are ratings to rank by, the spells are
-// taken the rarest first, as a rare is likelier to be worth its slot,
-// then creatures before other spells, as a limited deck wants most of its
-// spells to be creatures, then the cheapest first, for a curve that
-// starts early (decision 31). The pool's own lands are left for the
-// player to add: what mana a non-basic land makes is in its rules text,
-// which is not stored.
+// up to Spells of the spells it can cast, and Lands lands: the pool's
+// lands that make the colours' mana (OnColour), then basic lands for the
+// rest, split between the colours. Until there are ratings to rank by,
+// the spells are taken the rarest first, as a rare is likelier to be worth
+// its slot, then creatures before other spells, as a limited deck wants
+// most of its spells to be creatures, then the cheapest first, for a curve
+// that starts early (decision 31).
 func Suggest(cs []cards.Card, colours Colours) Deck {
-	var playable []cards.Card
+	var playable, lands []cards.Card
 	for _, c := range cs {
-		if Castable(c, colours) {
+		switch {
+		case Castable(c, colours):
 			playable = append(playable, c)
+		case OnColour(c, colours):
+			lands = append(lands, c)
 		}
 	}
 	slices.SortStableFunc(playable, func(a, b cards.Card) int {
@@ -146,13 +148,95 @@ func Suggest(cs []cards.Card, colours Colours) Deck {
 		)
 	})
 	playable = playable[:min(len(playable), Spells)]
-	d := Deck{Main: make([]int, len(playable))}
-	for i, c := range playable {
-		d.Main[i] = c.ArenaID
+	// A land making more of the deck's colours fixes its mana better, so
+	// it goes in first if there are ever more than the deck has room for.
+	slices.SortStableFunc(lands, func(a, b cards.Card) int {
+		return cmp.Or(
+			cmp.Compare(madeOf(b, colours), madeOf(a, colours)),
+			cmp.Compare(a.Name, b.Name),
+			cmp.Compare(a.ArenaID, b.ArenaID),
+		)
+	})
+	lands = lands[:min(len(lands), Lands)]
+	d := Deck{Main: make([]int, 0, len(playable)+len(lands))}
+	for _, c := range slices.Concat(playable, lands) {
+		d.Main = append(d.Main, c.ArenaID)
 	}
 	slices.Sort(d.Main)
-	d.Basics = SplitBasics(playable, colours, Lands)
+	d.Basics = basicsBeside(SplitBasics(playable, colours, Lands), lands, colours)
 	return d
+}
+
+// OnColour reports whether c is a land the suggestion plays in a deck of
+// colours (decision 32): a land other than a basic, which makes mana of at
+// least one of the colours, and either makes every one of them (a dual for
+// these two colours, or a land that makes any colour) or makes none
+// outside them (a land of one of the colours, perhaps with an ability).
+// A land that makes another colour as well as one of these, and not both
+// of the deck's, is left out: it is a basic land's worse twin, often one
+// that enters tapped. Basic lands are Arena's to supply, so the pool's
+// are not played; nor is a land whose source does not say what it makes.
+func OnColour(c cards.Card, colours Colours) bool {
+	if c.Kind() != cards.Land || basic(c) {
+		return false
+	}
+	makes := c.Makes()
+	chosen := colours.List()
+	if len(chosen) == 0 || !slices.ContainsFunc(makes, func(col cards.Colour) bool { return colours[col] }) {
+		return false
+	}
+	every := !slices.ContainsFunc(chosen, func(col cards.Colour) bool { return !slices.Contains(makes, col) })
+	inside := !slices.ContainsFunc(makes, func(col cards.Colour) bool { return !colours[col] })
+	return every || inside
+}
+
+// basic reports whether c is a basic land, by its front face's supertype:
+// "Basic Land — Forest", "Basic Snow Land — Island".
+func basic(c cards.Card) bool {
+	front, _, _ := strings.Cut(c.TypeLine, " // ")
+	types, _, _ := strings.Cut(front, " — ")
+	return slices.Contains(strings.Fields(types), "Basic")
+}
+
+// madeOf is how many of colours c makes mana of.
+func madeOf(c cards.Card, colours Colours) int {
+	n := 0
+	for _, col := range c.Makes() {
+		if colours[col] {
+			n++
+		}
+	}
+	return n
+}
+
+// basicsBeside is the basic lands that play beside the pool's lands: each
+// of those takes the place of one basic, of the colour it makes that has
+// the most basics left, so a dual takes from whichever colour has the
+// most to spare, and a land of one colour from its own. split is the
+// basics the deck would have with none of the pool's lands.
+func basicsBeside(split [5]int, lands []cards.Card, colours Colours) [5]int {
+	for _, l := range lands {
+		from, most := cards.Colour(-1), 0
+		for _, col := range l.Makes() {
+			if colours[col] && split[col] > most {
+				from, most = col, split[col]
+			}
+		}
+		if from < 0 {
+			// None of its colours has a basic to give up (a splash's
+			// single source, say, already taken by another land): the
+			// colour with the most gives one.
+			for _, col := range cards.Colours {
+				if split[col] > most {
+					from, most = col, split[col]
+				}
+			}
+		}
+		if from >= 0 {
+			split[from]--
+		}
+	}
+	return split
 }
 
 // rarityRank orders rarities, the rarest highest. A rarity Scryfall adds
