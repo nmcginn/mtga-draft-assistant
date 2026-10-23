@@ -123,7 +123,8 @@ response fields, and terms of use, before the first fetch ships)*
 *Not yet confirmed:* the nightly session of 2026-10-17 could not reach
 `17lands.com` and found no published terms, so the ratings task waits on
 the maintainer (a **needs human** item in the roadmap). Card images, the
-next task, went ahead instead.
+next task, went ahead instead. The session of 2026-10-23 could not reach
+it either (the proxy refuses the host), so this still stands.
 
 ### 14. The log is followed by polling, not file-system events
 

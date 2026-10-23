@@ -49,6 +49,9 @@ by rating, with card images, before the pick timer matters. macOS and Linux
     relaunch through the next pick. No fixture shows what a draft against
     people logs on rejoining, so the parser cannot yet tell such a draft's
     event or set (decision 23).
+  - [ ] A Sealed event, from joining it through opening the pool and
+    submitting a deck. Unblocks "Sealed" in Milestone 2: neither fixture
+    shows how Arena logs a sealed pool, so the parser cannot read one.
   - [ ] Scryfall's search for FRA, recorded, to replace the pages under
     `testdata/scryfall/`, which were written to Scryfall's documented schema
     because the session that built the client could not reach it. The
@@ -124,7 +127,9 @@ by rating, with card images, before the pick timer matters. macOS and Linux
   export does; no session could check that Arena's import accepts it,
   for an event's deck or a constructed one, or a split card's half-name.
   Copy a built deck, import it, and say what Arena did with it.
-- [ ] **Sealed.** The same pool and build views for a sealed pool.
+- [ ] **Sealed.** *Blocked on its fixture, above.* The same pool and build
+  views for a sealed pool: the parser learns the event's pool from its
+  fixture, and the pool and build (decisions 30–32) show it unchanged.
 
 ### Ideas, not yet scheduled
 
