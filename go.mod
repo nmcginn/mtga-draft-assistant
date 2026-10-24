@@ -9,7 +9,7 @@ toolchain go1.26.10
 
 require (
 	github.com/go-gui-org/go-gui v0.86.0
-	golang.org/x/sys v0.48.0
+	golang.org/x/sys v0.49.0
 	modernc.org/sqlite v1.60.1
 )
 
